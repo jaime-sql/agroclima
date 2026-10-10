@@ -27,4 +27,4 @@ npm run build
 npm run build:cloudflare
 ```
 
-A live Worker needs `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`, then `npx wrangler deploy`. The deploy workflow skips with a message when those GitHub Actions secrets are missing. Planning notes are in `devpost/`.
+A live Worker needs `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`, then `npx wrangler deploy --no-autoconfig`. The flag keeps the OpenNext config. The deploy workflow skips with a message when those GitHub Actions secrets are missing. Planning notes are in `devpost/`.

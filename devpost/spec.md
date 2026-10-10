@@ -63,8 +63,10 @@ Submission still needs a public GitHub repository and a video under 3 minutes. D
 Deploy target: Cloudflare Workers, Worker name `agroclima`.
 
 ```bash
-npx wrangler deploy
+npx wrangler deploy --no-autoconfig
 ```
+
+`--no-autoconfig` keeps this OpenNext setup. Wrangler's default autoconfig would treat a Next.js app as vinext.
 
 GitHub Actions (`.github/workflows/deploy.yml`) runs that on pushes to `main`. It reads secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. If either is missing it prints a clear skip message and exits successfully. It does not try to create credentials.
 

@@ -39,4 +39,4 @@ jobs:
         run: |
           npm ci
           npm run build:cloudflare
-          npx wrangler deploy
+          npx wrangler deploy --no-autoconfig
