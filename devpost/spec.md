@@ -25,13 +25,14 @@ PRD ref: `prd.md > The Core Journey`.
 6. `GET /api/health` returns `{ "ok": true }` so a deploy can be checked without a photo.
 
 ## Stack
-- TypeScript and Next.js App Router. Documentation: https://nextjs.org/docs/app
-- Cloudflare Workers through the OpenNext adapter `@opennextjs/cloudflare`. Documentation: https://opennext.js.org/cloudflare and https://developers.cloudflare.com/workers/framework-guides/web-apps/opennext/
-- Wrangler, config in `wrangler.jsonc`. Documentation: https://developers.cloudflare.com/workers/wrangler/
+- TypeScript and Next.js 16.4.0 App Router. Documentation: https://nextjs.org/docs/app
+- React 19.3.0.
+- Cloudflare Workers through `@opennextjs/cloudflare` 1.20.10. Documentation: https://opennext.js.org/cloudflare and https://developers.cloudflare.com/workers/framework-guides/web-apps/opennext/
+- Wrangler 4.149.0, config in `wrangler.jsonc`. Documentation: https://developers.cloudflare.com/workers/wrangler/
 - Node.js 22 for local checks and GitHub Actions.
 - Unit tests for the risk module use Node's built-in test runner. No test service.
 
-Versions are whatever `package.json` pins when the shell is installed. The entrant asked for this stack in the build instructions. The brief did not name a framework. The tradeoff is that OpenNext is an extra build step, and Cloudflare's current default for new Next.js apps is vinext. OpenNext is still the choice, because the build instructions name `@opennextjs/cloudflare`.
+The entrant asked for this stack in the build instructions. The brief did not name a framework. The tradeoff is that OpenNext is an extra build step, and Cloudflare's current default for new Next.js apps is vinext. OpenNext is still the choice, because the build instructions name `@opennextjs/cloudflare`. Peer range checked at install: Next `>=15.5.27 <16 || >=16.3.8`, which 16.4.0 satisfies.
 
 ## Where It Runs and How Someone Tries It
 The app is a server-rendered page plus route handlers, deployed as one Worker. Local development needs Node.js 22. Vision keys are optional until the diagnosis slice exists. Open-Meteo needs no key.
