@@ -1,0 +1,8 @@
+# Personal learning context stays out of commits.
+/devpost/learner-profile.md
+
+# Local secrets. Names live in .env.example only.
+.env
+.env.*
+!.env.example
+.dev.vars
