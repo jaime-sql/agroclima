@@ -44,9 +44,9 @@ export function AskBox({
 
   return (
     <form className="flex flex-col gap-3" onSubmit={(event) => void submit(event)}>
-      <label className="font-semibold" htmlFor="agroclima-pregunta">
-        Pregúntele a AgroClima
-      </label>
+      <h2>
+        <label htmlFor="agroclima-pregunta">Pregúntele a AgroClima</label>
+      </h2>
       <textarea
         id="agroclima-pregunta"
         className="min-h-28 w-full rounded-2xl bg-white p-4 text-lg text-[#1C1917] ring-2 ring-[#1E5B2A]"
