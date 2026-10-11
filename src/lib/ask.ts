@@ -1,3 +1,4 @@
+import { formatWeekday } from "./format.ts";
 import { resolveOpenAI, type OpenAIEnv } from "./openai.ts";
 
 export const ASK_MAX_QUESTION_CHARS = 400;
@@ -19,11 +20,18 @@ export const ASK_HEADER = "¿Tiene una pregunta?";
 export const ASK_PLACEHOLDER = "Escriba su pregunta";
 export const ASK_SOURCE = "Basado en el pronóstico y la foto de esta pantalla";
 export const ASK_SHARE = "Compartir con mi agrónomo";
-export const ASK_CHIPS = [
-  "¿Por qué el jueves es Alto?",
+export const ASK_OTHER_CHIPS = [
   "¿Qué significa Probable?",
   "¿Cuándo fumigar?",
 ] as const;
+
+/** First Alto day in the week, as «¿Por qué el lunes es Alto?». Hidden when none is Alto. */
+export function askChips(days: Array<{ date: string; level: string | null }>): string[] {
+  const alto = days.find((day) => day.level === "alto");
+  if (!alto) return [...ASK_OTHER_CHIPS];
+  const weekday = formatWeekday(alto.date).toLocaleLowerCase("es-SV");
+  return [`¿Por qué el ${weekday} es Alto?`, ...ASK_OTHER_CHIPS];
+}
 export const ASK_MAX_SENTENCES = 3;
 
 export const ASK_SYSTEM_PROMPT = [

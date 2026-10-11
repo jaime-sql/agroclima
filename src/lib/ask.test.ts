@@ -5,7 +5,7 @@ import {
   ASK_FAILED,
   ASK_MAX_QUESTION_CHARS,
   ASK_MAX_REPLY_TOKENS,
-  ASK_CHIPS,
+  askChips,
   ASK_HEADER,
   ASK_PLACEHOLDER,
   ASK_RATE_LIMITED,
@@ -254,11 +254,24 @@ describe("ask AgroClima", () => {
     assert.equal(ASK_SOURCE, "Basado en el pronóstico y la foto de esta pantalla");
     assert.equal(ASK_RATE_LIMITED, "Ha hecho muchas preguntas seguidas. Intente en unos minutos.");
     assert.equal(ASK_REFUSAL, "No puedo responder eso con seguridad. Consulte con su agrónomo.");
-    assert.deepEqual([...ASK_CHIPS], [
+    assert.deepEqual(askChips([{ date: "2026-10-12", level: "alto" }, { date: "2026-10-13", level: "alto" }]), [
+      "¿Por qué el lunes es Alto?",
+      "¿Qué significa Probable?",
+      "¿Cuándo fumigar?",
+    ]);
+    assert.deepEqual(askChips([{ date: "2026-10-12", level: "bajo" }, { date: "2026-10-15", level: "alto" }]), [
       "¿Por qué el jueves es Alto?",
       "¿Qué significa Probable?",
       "¿Cuándo fumigar?",
     ]);
+    assert.deepEqual(
+      askChips([
+        { date: "2026-10-12", level: "medio" },
+        { date: "2026-10-13", level: "bajo" },
+        { date: "2026-10-14", level: null },
+      ]),
+      ["¿Qué significa Probable?", "¿Cuándo fumigar?"],
+    );
     assert.equal(limitSentences("Uno. Dos. Tres. Cuatro más."), "Uno. Dos. Tres.");
     assert.equal(limitSentences("La máxima es 24.9 °C. El jueves es Alto."), "La máxima es 24.9 °C. El jueves es Alto.");
     const refused = await answerQuestion({

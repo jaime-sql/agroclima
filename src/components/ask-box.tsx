@@ -2,7 +2,7 @@
 
 import { useState, useSyncExternalStore } from "react";
 import {
-  ASK_CHIPS,
+  askChips,
   ASK_FAILED,
   ASK_HEADER,
   ASK_MAX_QUESTION_CHARS,
@@ -103,7 +103,7 @@ export function AskBox({
       {open ? (
         <>
           <div className="flex flex-col gap-2">
-            {ASK_CHIPS.map((chip) => (
+            {askChips(days).map((chip) => (
               <button
                 key={chip}
                 type="button"

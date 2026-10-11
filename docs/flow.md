@@ -65,7 +65,7 @@ El % se muestra pequeño junto a la palabra.
 - Tarjetas: **Qué** · **Cuánto** · **Cuándo** (el contenido viene de las reglas citadas; los mockups usan texto de ejemplo)
 - Tarjeta verde: «Próximo día seco para fumigar» con «☀ <día>, en la mañana»
 - «Use guantes y mascarilla. Lea la etiqueta.»
-- Bajo el plan, cerrado al inicio: «¿Tiene una pregunta?». Chips «¿Por qué el jueves es Alto?», «¿Qué significa Probable?», «¿Cuándo fumigar?». Campo con «Escriba su pregunta». El micrófono solo si el teléfono tiene SpeechRecognition. Cada respuesta trae un ▶ chico y «Basado en el pronóstico y la foto de esta pantalla». Si no puede responder: «No puedo responder eso con seguridad. Consulte con su agrónomo.» y debajo «Compartir con mi agrónomo». Si hay muchas preguntas: «Ha hecho muchas preguntas seguidas. Intente en unos minutos.»
+- Bajo el plan, cerrado al inicio: «¿Tiene una pregunta?». Si hay un día Alto, el primer chip es «¿Por qué el {día} es Alto?» con el nombre del primer día Alto (por ejemplo «lunes»); si no hay ninguno, ese chip no aparece. Los otros chips son «¿Qué significa Probable?» y «¿Cuándo fumigar?». Campo con «Escriba su pregunta». El micrófono solo si el teléfono tiene SpeechRecognition. Cada respuesta trae un ▶ chico y «Basado en el pronóstico y la foto de esta pantalla». Si no puede responder: «No puedo responder eso con seguridad. Consulte con su agrónomo.» y debajo «Compartir con mi agrónomo». Si hay muchas preguntas: «Ha hecho muchas preguntas seguidas. Intente en unos minutos.»
 - Botón: «Escuchar o compartir»
 - Solo aparece después de los resultados a) Roya o b) Sana (para b, un plan preventivo).
 

@@ -62,7 +62,7 @@ Preconditions: Worker has no `OPENAI_API_KEY`. The plan screen is open.
 Steps: type a short question and tap «Preguntar».
 Expected:
 - `POST /api/ask` returns HTTP 503 and the answer "AgroClima no puede responder ahora. Pregúntele a su agrónomo." OpenAI is not called.
-- Under the plan, collapsed until opened: header "¿Tiene una pregunta?", chips "¿Por qué el jueves es Alto?", "¿Qué significa Probable?", "¿Cuándo fumigar?", and placeholder "Escriba su pregunta". The mic shows only when the phone has SpeechRecognition.
+- Under the plan, collapsed until opened: header "¿Tiene una pregunta?", a chip "¿Por qué el {día} es Alto?" for the first Alto day's weekday (hidden when the week has no Alto day), plus "¿Qué significa Probable?" and "¿Cuándo fumigar?", and placeholder "Escriba su pregunta". The mic shows only when the phone has SpeechRecognition.
 
 ## TC-10 Ask stays on the screen data
 Steps: `npm test` runs `src/lib/ask.test.ts` with a mocked OpenAI reply.
