@@ -2,10 +2,19 @@
 
 export const DIAGNOSE_ERROR_COPY = "Algo salió mal. Intente otra vez.";
 
+/** Shown only when the diagnosis API returns error "unavailable". */
+export const DIAGNOSE_UNAVAILABLE_COPY = "El servicio no está disponible ahora.";
+
 export const RETRY_LABEL = "Intentar de nuevo";
 
 export const OFFLINE_COPY =
   'Sin señal. Su foto está guardada en este teléfono. Toque "Intentar de nuevo" cuando tenga señal.';
+
+export function diagnosisStatusCopy(kind: "unavailable" | "offline" | "failed"): string {
+  if (kind === "unavailable") return DIAGNOSE_UNAVAILABLE_COPY;
+  if (kind === "offline") return OFFLINE_COPY;
+  return DIAGNOSE_ERROR_COPY;
+}
 
 export const FORECAST_UNAVAILABLE_TITLE = "Pronóstico no disponible";
 
@@ -17,6 +26,26 @@ export const SIN_DATOS_WORD = "Sin datos";
 export const SIN_DATOS_MARK = "–";
 
 export const SIN_DATOS_CARD = "No hay pronóstico completo para este día.";
+
+export function coffeeZoneLabel(placeName: string): string {
+  return `Zona cafetalera de ${placeName}`;
+}
+
+export function riskStripSubtitle(placeName: string): string {
+  return `${coffeeZoneLabel(placeName)} · toque un día`;
+}
+
+/** The fungicide plan stays hidden when the leaf was not reviewed. */
+export function showsActionPlan(
+  diagnoseError: "unavailable" | "offline" | "failed" | null,
+  planAllowed: boolean,
+): boolean {
+  if (diagnoseError) return false;
+  return planAllowed;
+}
+
+export const RISK_ZONE_NOTE =
+  "Clima de una zona cafetalera cercana, no de su finca";
 
 export const GEO_DENIED_COPY =
   "No pudimos usar su ubicación. Elija su municipio.";

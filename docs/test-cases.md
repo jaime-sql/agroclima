@@ -39,7 +39,7 @@ Preconditions: Worker has no `VISION_API_KEY` secret.
 Steps: `POST /api/diagnose` with a photo, or submit one from `/`.
 Expected:
 - HTTP 503 and `{ "ok": false, "error": "unavailable" }`. No made-up diagnosis.
-- The page shows "Algo salió mal. Intente otra vez.", keeps the photo, and offers "Intentar de nuevo".
+- The page shows "El servicio no está disponible ahora.", keeps the photo, and offers "Intentar de nuevo". Other errors still use "Algo salió mal. Intente otra vez."
 - The risk strip and "Compartir con mi agrónomo" still work.
 
 ## TC-07 AegisFlow isolation
@@ -232,13 +232,18 @@ Expected levels were computed with an independent script following the rules (no
 |---|---|---|---|---|
 | DR-64 | `strip_7day_ordered.json` | Load fixture → assessForecast(); read all days[] | 7 days 10-12…10-18 in order: bajo(seco), medio, alto, bajo «Pocas horas…» (score 1, no bonus: today 3 h), medio, alto, bajo(temp) | day 6 alto via bonus from day 5 |
 | DR-65 | `strip_7day_shuffled.json` | Load fixture → assessForecast(); read all days[] | Identical to strip_7day_ordered (engine sorts by date) | daily + hourly arrays reversed |
-| DR-66 | (none: request) | Call forecastUrl(13.98827,-89.55685) | URL has timezone=America/El_Salvador and forecast_days=7 |  |
+| DR-66 | (none: request) | Call forecastUrl(13.88,-89.61) | URL has timezone=America/El_Salvador and forecast_days=7 |  |
 | DR-67 | `tz_late_night_wet_hours.json` | Load fixture → assessForecast(); read all days[] | 10-12 medio (wet 20:00–23:00 local count on 10-12); 10-13 bajo seco | local 23:00 must not roll to next day |
 | DR-68 | `tz_wrong_timezone_utc.json` | Load fixture → assessForecast(); read all days[] | «pronóstico no disponible». Code: accepts the reply → FAIL | timezone GMT, offset 0 |
+| DR-69 | (none: drop `timezone` from a scored fixture) | Load a valid fixture, delete `timezone`, call assessForecast() | available false, days [], «pronóstico no disponible». Same as a wrong timezone | missing timezone |
+| DR-70 | (none: hourly figures differ from the daily aggregates) | Score one local day whose hourly max is 24 °C and hourly rain is 6 mm, while `temperature_2m_max` is 31 and `precipitation_sum` is 0 | `wetHours`, `tmax`, and `rain` come from those scored hours (11, 24, 6). The level still uses the daily aggregates | same-window numbers |
+| DR-71 | `missing_all_hours_for_day.json` plus a null rain figure | Read the day with no hourly rows; format a scored day whose rain is null | No-hour day stays «sin datos» with no numbers, and `wetHours` / `tmax` / `rain` are null, not 0. A missing figure renders `lluvia: sin dato` | sin dato |
 
 ## Decided Oct 11 (now in rust_risk_rules.md §2a)
-- Bajo days use a bajo sentence. Bonus needs the previous calendar date present (day 1 never). Optimum needs ≥ 3 h. DTR dropped. Rain ≥ 1 mm with 0 wet h → bajo «Llueve, pero sin horas húmedas favorables a la roya». Missing hours or nulls → «sin datos». Fetch failure, empty reply or wrong timezone → «pronóstico no disponible».
+- Bajo days use a bajo sentence. Bonus needs the previous calendar date present (day 1 never). Optimum needs ≥ 3 h. DTR dropped. Rain ≥ 1 mm with 0 wet h → bajo «Llueve, pero sin horas húmedas favorables a la roya». Missing hours or nulls → «sin datos». Fetch failure, empty reply, missing timezone, or wrong timezone → «pronóstico no disponible».
 
 - Oct 11 (2): bonus needs today AND previous date ≥ 6; score 0–1 with warm wet hours → «Pocas horas húmedas favorables; riesgo bajo de roya».
 
-Case count: 68.
+- DR-69 missing timezone. DR-70 same-window numbers. DR-71 sin dato.
+
+Case count: 71.

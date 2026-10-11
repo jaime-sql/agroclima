@@ -174,7 +174,9 @@ function missingDay(date: string): DayAssessment {
     level: null,
     reason: REASON_SIN_DATOS,
     score: 0,
-    wetHours: 0,
+    wetHours: null,
+    tmax: null,
+    rain: null,
     warmWetHours: 0,
     optWetHours: 0,
     rainDay: false,
@@ -186,6 +188,7 @@ function missingDay(date: string): DayAssessment {
 function unavailableWeek(): WeekAssessment {
   return {
     available: false,
+    timezone: null,
     days: [],
     plan: buildPlan(null),
     footer: RISK_CUTOFF_FOOTER,
@@ -196,7 +199,7 @@ function forecastUsable(forecast: OpenMeteoForecast): forecast is OpenMeteoForec
   hourly: OpenMeteoHourly;
   daily: OpenMeteoDaily;
 } {
-  if (forecast.timezone && forecast.timezone !== "America/El_Salvador") return false;
+  if (forecast.timezone !== "America/El_Salvador") return false;
   const hourly = forecast.hourly;
   const daily = forecast.daily;
   if (!hourly || !daily) return false;
@@ -273,14 +276,23 @@ export function assessForecast(forecast: OpenMeteoForecast): WeekAssessment {
     let wetHours = 0;
     let warmWetHours = 0;
     let optWetHours = 0;
+    // Figures use this same local-day hour list. Do not read them from the daily aggregates.
+    let tmax = Number.NEGATIVE_INFINITY;
+    let rain = 0;
     for (const hour of dayHours) {
+      const temperature = hour.temperature_2m;
+      const precipitation = hour.precipitation;
+      if (temperature !== null && temperature > tmax) tmax = temperature;
+      if (precipitation !== null) rain += precipitation;
       if (!isWetHour(hour)) continue;
       wetHours += 1;
-      const temperature = hour.temperature_2m;
       if (temperature === null) continue;
       if (temperature < 15 || temperature > 30) continue;
       warmWetHours += 1;
       if (temperature >= 21 && temperature <= 25) optWetHours += 1;
+    }
+    if (!Number.isFinite(tmax)) {
+      return { date: entry.date, incomplete: true as const, warmWetHours: null };
     }
 
     const rainDay =
@@ -295,6 +307,8 @@ export function assessForecast(forecast: OpenMeteoForecast): WeekAssessment {
       optWetHours,
       rainDay,
       precipitationSum,
+      tmax,
+      rain,
       latencyBand,
     };
   });
@@ -336,6 +350,8 @@ export function assessForecast(forecast: OpenMeteoForecast): WeekAssessment {
       }),
       score,
       wetHours: day.wetHours,
+      tmax: day.tmax,
+      rain: day.rain,
       warmWetHours: day.warmWetHours,
       optWetHours: day.optWetHours,
       rainDay: day.rainDay,
@@ -346,6 +362,7 @@ export function assessForecast(forecast: OpenMeteoForecast): WeekAssessment {
 
   return {
     available: true,
+    timezone: "America/El_Salvador",
     days,
     plan: buildPlan(nextDrySprayWindow(forecast.hourly)),
     footer: RISK_CUTOFF_FOOTER,

@@ -1,6 +1,21 @@
-import { DEPARTMENTS, type DepartmentId } from "./weather/openmeteo.ts";
+/**
+ * Representative coffee-zone points (ISC origin zones Apaneca-Ilamatepec
+ * and Alotepec), not the user's farm. Elevations are meters.
+ * Swap latitude, longitude, and elevation in this object.
+ */
+export const PLACE_COORDINATES = {
+  "santa-ana": { latitude: 13.88, longitude: -89.61, elevation: 1432 },
+  ahuachapan: { latitude: 13.855, longitude: -89.835, elevation: 1290 },
+  chalatenango: { latitude: 14.33, longitude: -89.16, elevation: 1237 },
+} as const;
 
-export { DEPARTMENTS, type DepartmentId };
+export const DEPARTMENTS = [
+  { id: "santa-ana", name: "Santa Ana", ...PLACE_COORDINATES["santa-ana"] },
+  { id: "ahuachapan", name: "Ahuachapán", ...PLACE_COORDINATES.ahuachapan },
+  { id: "chalatenango", name: "Chalatenango", ...PLACE_COORDINATES.chalatenango },
+] as const;
+
+export type DepartmentId = (typeof DEPARTMENTS)[number]["id"];
 
 export type Place = (typeof DEPARTMENTS)[number];
 

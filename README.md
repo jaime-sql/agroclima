@@ -29,6 +29,10 @@ npm run build:cloudflare
 
 A live Worker needs `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`, then `npx wrangler deploy --no-autoconfig`. The flag keeps the OpenNext config. The deploy workflow skips with a message when those GitHub Actions secrets are missing. Planning notes are in `devpost/`.
 
+## Known limitations
+
+The place points are representative coffee zones (ISC origin zones Apaneca-Ilamatepec and Alotepec), not the user's farm. At 1,200-1,450 m, December, March, and April often score high under the Avelino 2015 temperature rule, not yet validated by an agronomist.
+
 ## Riesgo del clima
 
 Estos umbrales de riesgo son una estimación nuestra y no han sido validados por PROCAFE ni por el MAG.

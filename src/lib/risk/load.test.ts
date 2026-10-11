@@ -36,7 +36,7 @@ function dryWeek(): OpenMeteoForecast {
       hourly.precipitation_probability.push(10);
     }
   }
-  return { hourly, daily };
+  return { timezone: "America/El_Salvador", hourly, daily };
 }
 
 describe("place risk", () => {
@@ -47,7 +47,11 @@ describe("place risk", () => {
     assert.equal(result.ok, true);
     if (!result.ok) return;
     assert.equal(result.place.name, "Santa Ana");
+    assert.equal(result.timezone, "America/El_Salvador");
     assert.equal(result.days.length, 7);
+    assert.equal(result.days[0].wetHours, 0);
+    assert.equal(result.days[0].tmax, 24);
+    assert.equal(result.days[0].rain, 0);
     assert.equal(result.footer, RISK_CUTOFF_FOOTER);
     assert.deepEqual(result.plan.fungicideClasses, [...FUNGICIDE_CLASSES]);
     assert.equal(result.plan.doseNote, DOSE_NOTE);

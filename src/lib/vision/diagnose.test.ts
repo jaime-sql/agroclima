@@ -2,13 +2,20 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   DIAGNOSE_ERROR_COPY,
+  DIAGNOSE_UNAVAILABLE_COPY,
+  diagnosisStatusCopy,
   FORECAST_MISSING_COPY,
   FORECAST_UNAVAILABLE_TITLE,
+  OFFLINE_COPY,
   RETRY_LABEL,
+  RISK_ZONE_NOTE,
   SIN_DATOS_CARD,
   SIN_DATOS_MARK,
   SIN_DATOS_WORD,
+  riskStripSubtitle,
+  showsActionPlan,
 } from "./copy.ts";
+import { DEPARTMENTS } from "../places.ts";
 import { diagnoseImage, interpretDiagnosis, parseModelPayload } from "./diagnose.ts";
 
 describe("diagnosis", () => {
@@ -25,7 +32,12 @@ describe("diagnosis", () => {
     });
     assert.equal(called, false);
     assert.deepEqual(result, { ok: false, error: "unavailable" });
+    assert.equal(DIAGNOSE_UNAVAILABLE_COPY, "El servicio no está disponible ahora.");
+    assert.equal(diagnosisStatusCopy("unavailable"), DIAGNOSE_UNAVAILABLE_COPY);
     assert.equal(DIAGNOSE_ERROR_COPY, "Algo salió mal. Intente otra vez.");
+    assert.equal(diagnosisStatusCopy("failed"), DIAGNOSE_ERROR_COPY);
+    assert.equal(diagnosisStatusCopy("offline"), OFFLINE_COPY);
+    assert.notEqual(DIAGNOSE_UNAVAILABLE_COPY, DIAGNOSE_ERROR_COPY);
     assert.equal(RETRY_LABEL, "Intentar de nuevo");
     assert.equal(SIN_DATOS_MARK, "–");
     assert.equal(SIN_DATOS_WORD, "Sin datos");
@@ -35,6 +47,31 @@ describe("diagnosis", () => {
       FORECAST_MISSING_COPY,
       "No pudimos obtener el pronóstico. Revise su señal e intente de nuevo.",
     );
+  });
+
+  it("names the nearby coffee zone and keeps the three picker labels", () => {
+    assert.deepEqual(
+      DEPARTMENTS.map((place) => place.name),
+      ["Santa Ana", "Ahuachapán", "Chalatenango"],
+    );
+    assert.equal(
+      riskStripSubtitle("Santa Ana"),
+      "Zona cafetalera de Santa Ana · toque un día",
+    );
+    assert.equal(
+      riskStripSubtitle("Ahuachapán"),
+      "Zona cafetalera de Ahuachapán · toque un día",
+    );
+    assert.equal(
+      riskStripSubtitle("Chalatenango"),
+      "Zona cafetalera de Chalatenango · toque un día",
+    );
+    assert.equal(RISK_ZONE_NOTE, "Clima de una zona cafetalera cercana, no de su finca");
+    assert.equal(showsActionPlan("unavailable", true), false);
+    assert.equal(showsActionPlan("failed", true), false);
+    assert.equal(showsActionPlan("offline", true), false);
+    assert.equal(showsActionPlan(null, true), true);
+    assert.equal(showsActionPlan(null, false), false);
   });
 
   it("lets a retake win, and keeps a healthy leaf unsure below 0.85", () => {
