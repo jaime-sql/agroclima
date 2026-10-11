@@ -57,6 +57,34 @@ export function formatPhotoDate(date: Date): string {
   }).format(date);
 }
 
+function formatMeasure(value: number): string {
+  const rounded = Math.round(value * 10) / 10;
+  if (Math.abs(rounded - Math.round(rounded)) < 1e-9) return String(Math.round(rounded));
+  return rounded.toFixed(1);
+}
+
+/** "11 horas húmedas, máx. 24 °C, lluvia 6 mm" from that day's own figures. */
+export function dayFiguresLine(day: {
+  wetHours: number;
+  tmax: number | null;
+  rain: number | null;
+}): string {
+  const hours = day.wetHours === 1 ? "1 hora húmeda" : `${day.wetHours} horas húmedas`;
+  const max = day.tmax === null ? "máx. —" : `máx. ${formatMeasure(day.tmax)} °C`;
+  const rain = day.rain === null ? "lluvia —" : `lluvia ${formatMeasure(day.rain)} mm`;
+  return `${hours}, ${max}, ${rain}`;
+}
+
+/** Figures first, then the rule sentence. */
+export function dayCardReason(day: {
+  wetHours: number;
+  tmax: number | null;
+  rain: number | null;
+  reason: string;
+}): string {
+  return `${dayFiguresLine(day)}. ${day.reason}`;
+}
+
 export function formatSprayWindow(
   window: { start: string; end: string } | null,
 ): string {

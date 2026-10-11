@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { DOSE_NOTE, FUNGICIDE_CLASSES } from "./risk/assess.ts";
-import { agronomistShareText, canShareFiles, whatsAppLink } from "./share.ts";
+import { DOSE_NOTE, FUNGICIDE_CLASSES, REASON_ALTO } from "./risk/assess.ts";
+import {
+  agronomistSharePayload,
+  agronomistShareText,
+  canShareFiles,
+  whatsAppLink,
+} from "./share.ts";
 
 describe("agronomist share", () => {
   it("builds a wa.me text link and does not put a numeric dose in the message", () => {
@@ -24,6 +29,62 @@ describe("agronomist share", () => {
       assert.equal(text.includes(name), false);
     }
     assert.equal(/\d+\s*(kg|cc|ml|g)\b/i.test(text), false);
+    assert.equal(
+      agronomistSharePayload({
+        diagnoseError: null,
+        summary: "Parece roya (Probable).",
+        placeName: "Santa Ana",
+        photoDate: "12/10/2026",
+        days: [],
+      }).includePhoto,
+      true,
+    );
+  });
+
+  it("shares only the coffee zone and the week when the leaf was not reviewed", () => {
+    const payload = agronomistSharePayload({
+      diagnoseError: "unavailable",
+      summary: "No pudimos revisar la hoja.",
+      placeName: "Santa Ana",
+      photoDate: "11/10/2026",
+      days: [
+        {
+          date: "2026-10-11",
+          level: "alto",
+          reason: REASON_ALTO,
+          wetHours: 11,
+          tmax: 24,
+          rain: 6,
+        },
+        {
+          date: "2026-10-12",
+          level: null,
+          reason: "«sin datos»",
+          wetHours: 0,
+          tmax: null,
+          rain: null,
+        },
+      ],
+    });
+    assert.equal(payload.includePhoto, false);
+    assert.equal(
+      payload.text,
+      "Zona cafetalera de Santa Ana. Dom 11: Alto. 11 horas húmedas, máx. 24 °C, lluvia 6 mm. «Hojas mojadas muchas horas y clima tibio: la roya se pega fácil.» Lun 12: Sin datos.",
+    );
+    assert.equal(payload.text.includes("No pudimos revisar la hoja"), false);
+    assert.equal(payload.text.includes("Foto del"), false);
+
+    const failed = agronomistSharePayload({
+      diagnoseError: "failed",
+      summary: "No pudimos revisar la hoja.",
+      placeName: "Ahuachapán",
+      photoDate: "11/10/2026",
+      days: [],
+      forecastUnavailable: true,
+    });
+    assert.equal(failed.includePhoto, false);
+    assert.equal(failed.text.includes("No pudimos revisar la hoja"), false);
+    assert.match(failed.text, /^Zona cafetalera de Ahuachapán\. Pronóstico no disponible\./);
   });
 
   it("uses the file share path only when canShare accepts files", () => {

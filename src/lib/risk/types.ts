@@ -31,6 +31,10 @@ export type DayAssessment = {
   reason: string;
   score: number;
   wetHours: number;
+  /** Daily maximum temperature, °C. Null when the day is sin datos. */
+  tmax: number | null;
+  /** Daily precipitation sum, mm. Null when the day is sin datos. */
+  rain: number | null;
   warmWetHours: number;
   optWetHours: number;
   rainDay: boolean;

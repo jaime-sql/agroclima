@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState, type RefObject } from "react";
-import { formatPhotoDate } from "@/lib/format";
+import { dayCardReason, formatPhotoDate } from "@/lib/format";
 import { downscalePhoto } from "@/lib/photo";
 import { DEPARTMENTS, nearestPlace, placeById } from "@/lib/places";
-import { agronomistShareText, canShareFiles, whatsAppLink } from "@/lib/share";
+import { agronomistSharePayload, canShareFiles, whatsAppLink } from "@/lib/share";
 import {
   CONTACTS_PENDING,
   diagnosisStatusCopy,
@@ -14,6 +14,7 @@ import {
   RETRY_LABEL,
   RISK_ZONE_NOTE,
   riskStripSubtitle,
+  showsActionPlan,
 } from "@/lib/vision/copy";
 import type { Diagnosis } from "@/lib/vision/diagnose";
 import { ListenButton } from "./listen-button";
@@ -70,7 +71,7 @@ export function HomeFlow() {
     diagnosis.band !== "no_seguro" &&
     (diagnosis.label === "roya" || diagnosis.label === "sana") &&
     diagnoseError === null;
-  const showRiskPlan = planAllowed || diagnoseError !== null;
+  const showRiskPlan = showsActionPlan(diagnoseError, planAllowed);
 
   async function takePhoto(file: File | undefined) {
     if (!file) return;
@@ -146,21 +147,24 @@ export function HomeFlow() {
   }
 
   async function share() {
-    if (!place || !photoTaken) return;
-    const text = agronomistShareText({
+    if (!place) return;
+    const payload = agronomistSharePayload({
+      diagnoseError,
       summary: shareSummary(diagnosis, diagnoseError),
       placeName: place.name,
-      photoDate: formatPhotoDate(photoTaken),
+      photoDate: photoTaken ? formatPhotoDate(photoTaken) : "",
+      days: risk?.days ?? [],
+      forecastUnavailable: riskState === "failed" && !risk,
     });
-    if (photo && canShareFiles(navigator.canShare?.bind(navigator), photo)) {
+    if (payload.includePhoto && photo && photoTaken && canShareFiles(navigator.canShare?.bind(navigator), photo)) {
       try {
-        await navigator.share({ files: [photo], text, title: "AgroClima" });
+        await navigator.share({ files: [photo], text: payload.text, title: "AgroClima" });
         return;
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") return;
       }
     }
-    window.location.assign(whatsAppLink(text));
+    window.location.assign(whatsAppLink(payload.text));
   }
 
   function reset() {
@@ -234,7 +238,7 @@ export function HomeFlow() {
             risk={risk}
             loading={riskState === "loading"}
             failed={riskState === "failed"}
-            showPlan={riskState === "failed" ? false : showRiskPlan}
+            showPlan={riskState === "failed" ? false : showsActionPlan(diagnoseError, planAllowed)}
             onRetry={() => void loadRisk(placeId)}
           />
           {riskState === "failed" ? (
@@ -418,7 +422,7 @@ function ResultStep({
             risk={risk}
             loading={riskState === "loading"}
             failed={riskState === "failed"}
-            showPlan
+            showPlan={showsActionPlan(diagnoseError, planAllowed)}
             onRetry={onRiskRetry}
           />
           <button type="button" className={secondary} onClick={onShare}>
@@ -575,7 +579,16 @@ function spokenText(input: {
   const forecastNote = input.riskFailed
     ? ` ${FORECAST_UNAVAILABLE_TITLE}. ${FORECAST_MISSING_COPY}`
     : "";
-  if (input.diagnoseError) return `${diagnosisStatusCopy(input.diagnoseError)}${forecastNote}`;
+  if (input.diagnoseError) {
+    const status = `${diagnosisStatusCopy(input.diagnoseError)}${forecastNote}`;
+    if (!input.risk) return status;
+    const days = input.risk.days
+      .map((day) =>
+        day.level ? `${day.date} ${day.level}. ${dayCardReason(day)}` : `${day.date} sin datos.`,
+      )
+      .join(" ");
+    return `${status} ${riskStripSubtitle(input.placeName)}. ${RISK_ZONE_NOTE}. ${days}`;
+  }
   if (input.step === "resultado" && input.diagnosis?.ok) {
     return [input.diagnosis.headline, input.diagnosis.detail, input.diagnosis.advice, input.diagnosis.card]
       .filter(Boolean)
@@ -592,7 +605,7 @@ function spokenText(input: {
   if (input.risk) {
     const days = input.risk.days
       .map((day) =>
-        day.level ? `${day.date} ${day.level}. ${day.reason}` : `${day.date} sin datos.`,
+        day.level ? `${day.date} ${day.level}. ${dayCardReason(day)}` : `${day.date} sin datos.`,
       )
       .join(" ");
     return `Riesgo de roya esta semana. ${riskStripSubtitle(input.placeName)}. ${RISK_ZONE_NOTE}. ${days} ${input.risk.footer}`;

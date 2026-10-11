@@ -175,6 +175,8 @@ function missingDay(date: string): DayAssessment {
     reason: REASON_SIN_DATOS,
     score: 0,
     wetHours: 0,
+    tmax: null,
+    rain: null,
     warmWetHours: 0,
     optWetHours: 0,
     rainDay: false,
@@ -296,6 +298,7 @@ export function assessForecast(forecast: OpenMeteoForecast): WeekAssessment {
       optWetHours,
       rainDay,
       precipitationSum,
+      tempMax,
       latencyBand,
     };
   });
@@ -337,6 +340,8 @@ export function assessForecast(forecast: OpenMeteoForecast): WeekAssessment {
       }),
       score,
       wetHours: day.wetHours,
+      tmax: day.tempMax,
+      rain: day.precipitationSum,
       warmWetHours: day.warmWetHours,
       optWetHours: day.optWetHours,
       rainDay: day.rainDay,

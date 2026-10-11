@@ -27,8 +27,21 @@ export const SIN_DATOS_MARK = "–";
 
 export const SIN_DATOS_CARD = "No hay pronóstico completo para este día.";
 
+export function coffeeZoneLabel(placeName: string): string {
+  return `Zona cafetalera de ${placeName}`;
+}
+
 export function riskStripSubtitle(placeName: string): string {
-  return `Zona cafetalera de ${placeName} · toque un día`;
+  return `${coffeeZoneLabel(placeName)} · toque un día`;
+}
+
+/** The fungicide plan stays hidden when the leaf was not reviewed. */
+export function showsActionPlan(
+  diagnoseError: "unavailable" | "offline" | "failed" | null,
+  planAllowed: boolean,
+): boolean {
+  if (diagnoseError) return false;
+  return planAllowed;
 }
 
 export const RISK_ZONE_NOTE =

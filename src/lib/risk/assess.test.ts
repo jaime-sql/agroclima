@@ -213,6 +213,21 @@ describe("coffee rust risk rules", () => {
       alto.reason,
       "«Hojas mojadas muchas horas y clima tibio: la roya se pega fácil.»",
     );
+
+    const counted = assessForecast(
+      forecast([
+        {
+          date: "2026-10-11",
+          hours: wetHours("2026-10-11", 11, 22),
+          temperature_2m_max: 24,
+          precipitation_sum: 6,
+        },
+      ]),
+    ).days[0];
+    assert.equal(counted.wetHours, 11);
+    assert.equal(counted.tmax, 24);
+    assert.equal(counted.rain, 6);
+    assert.equal(counted.level, "alto");
   });
 
   it("R2 gives +2 for ≥6 warm wet hours, +1 for 3–5, and the bonus only when today and the previous date both have ≥6", () => {
@@ -641,6 +656,10 @@ describe("DR-01 to DR-69 fixtures", () => {
     assert.equal(week.days[1].date, "2026-10-13");
     assert.equal(week.days[1].level, null);
     assert.equal(week.days[1].reason, REASON_SIN_DATOS);
+    assert.equal(week.days[1].tmax, null);
+    assert.equal(week.days[1].rain, null);
+    assert.equal(typeof week.days[0].tmax, "number");
+    assert.equal(typeof week.days[0].rain, "number");
   });
 
   it("DR-64 and DR-65 keep seven ordered days after a shuffled reply", () => {

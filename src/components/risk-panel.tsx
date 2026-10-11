@@ -11,7 +11,7 @@ import {
   SIN_DATOS_WORD,
   riskStripSubtitle,
 } from "@/lib/vision/copy";
-import { formatChipDate, formatSprayWindow, formatWeekday, levelMark, levelWord } from "@/lib/format";
+import { dayCardReason, formatChipDate, formatSprayWindow, formatWeekday, levelMark, levelWord } from "@/lib/format";
 import type { WeekAssessment } from "@/lib/risk/types";
 
 export type RiskView = WeekAssessment & {
@@ -132,7 +132,7 @@ export function RiskPanel({
                 ? formatWeekday(day.date)
                 : `${formatWeekday(day.date)}: ${levelWord(day.level)}`}
             </h3>
-            <p className="mt-2">{day.level === null ? SIN_DATOS_CARD : day.reason}</p>
+            <p className="mt-2">{day.level === null ? SIN_DATOS_CARD : dayCardReason(day)}</p>
           </article>
           <a
             className="flex min-h-12 items-center font-semibold text-[#1E5B2A] underline"
