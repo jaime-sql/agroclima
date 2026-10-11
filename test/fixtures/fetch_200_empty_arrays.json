@@ -1,0 +1,42 @@
+{
+ "_http_status": 200,
+ "body": {
+  "latitude": 13.99,
+  "longitude": -89.56,
+  "generationtime_ms": 0.1,
+  "utc_offset_seconds": -21600,
+  "timezone": "America/El_Salvador",
+  "timezone_abbreviation": "GMT-6",
+  "elevation": 650.0,
+  "hourly_units": {
+   "time": "iso8601",
+   "temperature_2m": "°C",
+   "relative_humidity_2m": "%",
+   "precipitation": "mm",
+   "precipitation_probability": "%"
+  },
+  "daily_units": {
+   "time": "iso8601",
+   "temperature_2m_max": "°C",
+   "temperature_2m_min": "°C",
+   "precipitation_sum": "mm",
+   "precipitation_hours": "h",
+   "precipitation_probability_max": "%"
+  },
+  "hourly": {
+   "time": [],
+   "temperature_2m": [],
+   "relative_humidity_2m": [],
+   "precipitation": [],
+   "precipitation_probability": []
+  },
+  "daily": {
+   "time": [],
+   "temperature_2m_max": [],
+   "temperature_2m_min": [],
+   "precipitation_sum": [],
+   "precipitation_hours": [],
+   "precipitation_probability_max": []
+  }
+ }
+}

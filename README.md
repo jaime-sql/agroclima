@@ -10,14 +10,14 @@ Ideas only. No code from these projects is reused here.
 - WebMCPHackChallenge / AgriMCP (Jaime)
 - crafterhack / AgroVision Pro (team: jaime-sql, raulpenate, geodesicas, Luis)
 
-## Try the shell
+## Try it
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open http://localhost:3000. `GET /api/health` returns `{ "ok": true }`.
+Open http://localhost:3000. The page is in Spanish: take or upload a leaf photo, pick Santa Ana, Ahuachapán, or Chalatenango (or use the phone location), then review the leaf. `GET /api/health` returns `{ "ok": true, "sha": "dev" }` locally, and the deployed short commit SHA after a deploy build. `GET /api/risk?place=santa-ana` returns the 7-day rust risk. `POST /api/diagnose` returns `{ "ok": false, "error": "unavailable" }` until `VISION_API_KEY` is set.
 
 ```bash
 npm run lint
