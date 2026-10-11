@@ -9,5 +9,5 @@ export function pickSpanishVoice<T extends { lang: string }>(voices: T[]): T | n
     );
     if (match) return match.voice;
   }
-  return ranked.find((item) => item.lang === "es" || item.lang.startsWith("es-"))?.voice ?? null;
+  return null;
 }

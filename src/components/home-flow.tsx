@@ -19,9 +19,11 @@ import { RiskPanel, type RiskView } from "./risk-panel";
 type Step = "foto" | "resultado" | "riesgo" | "plan" | "compartir";
 
 const primary =
-  "min-h-14 w-full rounded-2xl bg-[#1E5B2A] px-4 text-lg font-semibold text-white disabled:opacity-50";
+  "min-h-14 w-full rounded-2xl bg-[#1E5B2A] px-4 text-lg font-semibold text-white";
 const secondary =
   "min-h-14 w-full rounded-2xl bg-white px-4 text-lg font-semibold text-[#1E5B2A] ring-2 ring-[#1E5B2A]";
+const listenTall =
+  "min-h-[76px] w-full rounded-2xl bg-white px-4 text-lg font-semibold text-[#1E5B2A] ring-2 ring-[#1E5B2A]";
 
 function shareSummary(
   diagnosis: Diagnosis | null,
@@ -181,8 +183,8 @@ export function HomeFlow() {
   });
 
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-5 px-4 py-6">
-      <p className="text-sm font-semibold tracking-wide text-[#1E5B2A]">AgroClima</p>
+    <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-5 px-3 py-6">
+      <p className="font-semibold tracking-wide text-[#1E5B2A]">AgroClima</p>
       {step === "foto" ? (
         <FotoStep
           placeId={placeId}
@@ -245,6 +247,7 @@ export function HomeFlow() {
         <ShareStep
           summary={shareSummary(diagnosis, diagnoseError)}
           placeName={place?.name ?? ""}
+          spoken={spoken}
           onShare={() => void share()}
           onReset={reset}
         />
@@ -286,7 +289,7 @@ function FotoStep({
       <h1 className="text-2xl font-semibold tracking-tight">
         Tome una foto de una hoja de café.
       </h1>
-      <p className="text-lg">Una sola hoja, de cerca, con buena luz.</p>
+      <p>Una sola hoja, de cerca, con buena luz.</p>
       {preview ? (
         <div
           role="img"
@@ -316,7 +319,7 @@ function FotoStep({
       <button type="button" className={secondary} onClick={() => uploadRef.current?.click()}>
         Subir foto
       </button>
-      <label className="text-lg font-semibold" htmlFor="municipio">
+      <label className="flex min-h-12 items-center font-semibold" htmlFor="municipio">
         ¿Dónde está su finca?
       </label>
       <select
@@ -335,9 +338,9 @@ function FotoStep({
       <button type="button" className={secondary} onClick={onLocate}>
         Usar mi ubicación
       </button>
-      {geoNote ? <p className="text-lg">{geoNote}</p> : null}
+      {geoNote ? <p>{geoNote}</p> : null}
       {diagnosing ? (
-        <p className="text-lg" role="status">
+        <p role="status">
           {slow
             ? "Esto tarda un poco. Espere, por favor."
             : "Revisando su hoja…"}
@@ -433,18 +436,18 @@ function DiagnosisBody({
       <h1 className="text-[30px] font-semibold leading-tight" aria-live="polite">
         {diagnosis.headline}
       </h1>
-      <p className="text-lg">{diagnosis.detail}</p>
+      <p>{diagnosis.detail}</p>
       {diagnosis.advice ? (
-        <article className="rounded-2xl bg-[#FFF1C2] p-4 text-lg text-[#6B4B00]">
-          <h2 className="font-semibold">Consejo</h2>
+        <article className="rounded-2xl bg-[#FFF1C2] p-4 text-[#6B4B00]">
+          <h2 className="text-2xl font-semibold">Consejo</h2>
           <p className="mt-1">{diagnosis.advice}</p>
         </article>
       ) : null}
       {diagnosis.card ? (
-        <article className="rounded-2xl bg-white p-4 text-lg shadow-sm">{diagnosis.card}</article>
+        <article className="rounded-2xl bg-white p-4 shadow-sm">{diagnosis.card}</article>
       ) : null}
       {diagnosis.band === "no_seguro" && diagnosis.label !== "retomar" ? (
-        <article className="rounded-2xl bg-[#E7E5E4] p-4 text-lg">{CONTACTS_PENDING}</article>
+        <article className="rounded-2xl bg-[#E7E5E4] p-4">{CONTACTS_PENDING}</article>
       ) : null}
       {diagnosis.label === "retomar" ? (
         <button type="button" className={primary} onClick={onRetake}>
@@ -498,23 +501,26 @@ function DiagnosisBody({
 function ShareStep({
   summary,
   placeName,
+  spoken,
   onShare,
   onReset,
 }: {
   summary: string;
   placeName: string;
+  spoken: string;
   onShare: () => void;
   onReset: () => void;
 }) {
   return (
     <>
       <h1 className="text-2xl font-semibold">Su resumen</h1>
-      <article className="rounded-2xl bg-white p-4 text-lg shadow-sm">
+      <article className="rounded-2xl bg-white p-4 shadow-sm">
         <p>{summary}</p>
         <p className="mt-2">Departamento: {placeName}.</p>
         <p className="mt-2">Es una orientación, no un diagnóstico.</p>
       </article>
-      <button type="button" className="min-h-[76px] w-full rounded-2xl bg-[#1E5B2A] px-4 text-lg font-semibold text-white" onClick={onShare}>
+      <ListenButton text={spoken} label="Escuchar en voz alta" className={listenTall} />
+      <button type="button" className={primary} onClick={onShare}>
         Compartir con mi agrónomo
       </button>
       <button type="button" className={secondary} onClick={onShare}>

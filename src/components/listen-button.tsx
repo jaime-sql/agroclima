@@ -3,7 +3,18 @@
 import { useEffect, useState } from "react";
 import { pickSpanishVoice } from "@/lib/speech";
 
-export function ListenButton({ text }: { text: string }) {
+const defaultClass =
+  "min-h-14 w-full rounded-2xl bg-white px-4 text-lg font-semibold text-[#1E5B2A] ring-2 ring-[#1E5B2A]";
+
+export function ListenButton({
+  text,
+  label = "♪ Escuchar esta pantalla",
+  className = defaultClass,
+}: {
+  text: string;
+  label?: string;
+  className?: string;
+}) {
   const [voice, setVoice] = useState<SpeechSynthesisVoice | null>(null);
 
   useEffect(() => {
@@ -22,7 +33,7 @@ export function ListenButton({ text }: { text: string }) {
   return (
     <button
       type="button"
-      className="min-h-14 w-full rounded-2xl bg-white px-4 text-lg font-semibold text-[#1E5B2A] ring-2 ring-[#1E5B2A]"
+      className={className}
       onClick={() => {
         const synth = window.speechSynthesis;
         synth.cancel();
@@ -32,7 +43,7 @@ export function ListenButton({ text }: { text: string }) {
         synth.speak(utterance);
       }}
     >
-      ♪ Escuchar esta pantalla
+      {label}
     </button>
   );
 }

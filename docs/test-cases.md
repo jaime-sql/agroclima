@@ -45,3 +45,18 @@ Expected:
 ## TC-07 AegisFlow isolation
 Steps: after any AgroClima deploy, run `curl -o /dev/null -w "%{http_code}" https://aegisflow.jaime-8a8.workers.dev/aegisflow/sign-in`.
 Expected: 200. `wrangler.jsonc` keeps `"name": "agroclima"`, with no routes or custom domains.
+
+## UX cases (Designer) — run on a 390px-wide phone viewport, Spanish
+
+| ID | Check | Steps | Expected |
+|---|---|---|---|
+| UX-01 | Spanish copy | Walk every screen and state | Copy matches `flow.md` word for word; no English strings |
+| UX-02 | Text size | Inspect body and headings | Body ≥18px, headings ≥24px (only exception: risk-chip word at 12px, repeated at full size in the day card) |
+| UX-03 | Tap targets | Inspect all buttons/chips | Every target ≥48×48px |
+| UX-04 | Contrast | Check text and icons against their background | WCAG AA: ≥4.5:1 text, ≥3:1 large text and icons |
+| UX-05 | Risk not by color alone | 7-day strip | Every day shows icon + word (Alto/Medio/Bajo) |
+| UX-06 | Result states | Force each label/confidence | Seguro, Probable ("Confirme con un agrónomo"), Sana only ≥0.85, No estamos seguros (no plan), Repetir foto (reason + tip) |
+| UX-07 | Rust as guidance | Rust result | Shows "Parece roya" + "Esto es una orientación, no un diagnóstico" |
+| UX-08 | Listen | Phone with and without a Spanish voice | Escuchar reads the screen; hidden when no es-US/es-MX/es-ES voice |
+| UX-09 | Share | Tap "Compartir con mi agrónomo" | Share sheet with photo on Android Chrome / iOS Safari; text-only WhatsApp link elsewhere |
+| UX-10 | Unavailable | No vision key | flow.md error copy, photo kept, "Intentar de nuevo"; risk strip and share still work |
