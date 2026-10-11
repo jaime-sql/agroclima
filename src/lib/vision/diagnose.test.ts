@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { DIAGNOSE_ERROR_COPY, RETRY_LABEL } from "./copy.ts";
+import {
+  DIAGNOSE_ERROR_COPY,
+  FORECAST_MISSING_COPY,
+  FORECAST_UNAVAILABLE_TITLE,
+  RETRY_LABEL,
+  SIN_DATOS_CARD,
+  SIN_DATOS_MARK,
+  SIN_DATOS_WORD,
+} from "./copy.ts";
 import { diagnoseImage, interpretDiagnosis, parseModelPayload } from "./diagnose.ts";
 
 describe("diagnosis", () => {
@@ -19,6 +27,14 @@ describe("diagnosis", () => {
     assert.deepEqual(result, { ok: false, error: "unavailable" });
     assert.equal(DIAGNOSE_ERROR_COPY, "Algo salió mal. Intente otra vez.");
     assert.equal(RETRY_LABEL, "Intentar de nuevo");
+    assert.equal(SIN_DATOS_MARK, "–");
+    assert.equal(SIN_DATOS_WORD, "Sin datos");
+    assert.equal(SIN_DATOS_CARD, "No hay pronóstico completo para este día.");
+    assert.equal(FORECAST_UNAVAILABLE_TITLE, "Pronóstico no disponible");
+    assert.equal(
+      FORECAST_MISSING_COPY,
+      "No pudimos obtener el pronóstico. Revise su señal e intente de nuevo.",
+    );
   });
 
   it("lets a retake win, and keeps a healthy leaf unsure below 0.85", () => {

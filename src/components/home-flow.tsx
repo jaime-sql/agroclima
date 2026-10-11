@@ -221,14 +221,24 @@ export function HomeFlow() {
       ) : null}
       {step === "riesgo" ? (
         <>
+          {riskState === "failed" && diagnosis?.ok ? (
+            <>
+              <h1 className="text-[30px] font-semibold leading-tight">{diagnosis.headline}</h1>
+              <p>{diagnosis.detail}</p>
+            </>
+          ) : null}
           <RiskPanel
             risk={risk}
             loading={riskState === "loading"}
             failed={riskState === "failed"}
-            showPlan={showRiskPlan}
+            showPlan={riskState === "failed" ? false : showRiskPlan}
             onRetry={() => void loadRisk(placeId)}
           />
-          {showRiskPlan && planAllowed ? (
+          {riskState === "failed" ? (
+            <button type="button" className={secondary} onClick={() => void share()}>
+              Compartir con mi agrónomo
+            </button>
+          ) : showRiskPlan && planAllowed ? (
             <button type="button" className={primary} onClick={() => setStep("plan")}>
               Ver mi plan
             </button>
@@ -570,7 +580,12 @@ function spokenText(input: {
       .join(" ") + forecastNote;
   }
   if (input.riskFailed && !input.risk) {
-    return `${FORECAST_UNAVAILABLE_TITLE}. ${FORECAST_MISSING_COPY}`;
+    const diagnosisLine = input.diagnosis?.ok
+      ? `${input.diagnosis.headline}. ${input.diagnosis.detail}`
+      : "";
+    return [diagnosisLine, `${FORECAST_UNAVAILABLE_TITLE}. ${FORECAST_MISSING_COPY}`]
+      .filter(Boolean)
+      .join(" ");
   }
   if (input.risk) {
     const days = input.risk.days
