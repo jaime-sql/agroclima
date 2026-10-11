@@ -1,3 +1,26 @@
+export const ORIENTATION_SENTENCE = "Es una orientación, no un diagnóstico.";
+
+export const LISTEN_COPY = {
+  idle: "▶ Escuchar",
+  loading: "Preparando audio…",
+  playing: "❚❚ Pausar",
+  again: "▶ Escuchar otra vez",
+  failed: "No pudimos leer en voz alta.",
+} as const;
+
+/** Result, then the plan, then the week, then the orientation sentence. */
+export function listenScript(parts: {
+  result?: string | null;
+  plan?: string | null;
+  week?: string | null;
+}): string {
+  const body = [parts.result, parts.plan, parts.week]
+    .map((part) => part?.trim() ?? "")
+    .filter(Boolean);
+  if (body.length === 0) return "";
+  return [...body, ORIENTATION_SENTENCE].join(" ");
+}
+
 export function pickSpanishVoice<T extends { lang: string }>(voices: T[]): T | null {
   const ranked = voices.map((voice) => ({
     voice,

@@ -17,7 +17,7 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000. The page is in Spanish: take or upload a leaf photo, pick Santa Ana, Ahuachapán, or Chalatenango (or use the phone location), then review the leaf. `GET /api/health` returns `{ "ok": true, "sha": "dev" }` locally, and the deployed short commit SHA after a deploy build. `GET /api/risk?place=santa-ana` returns the 7-day rust risk. `POST /api/diagnose` returns `{ "ok": false, "error": "unavailable" }` until `VISION_API_KEY` is set.
+Open http://localhost:3000. The page is in Spanish: take or upload a leaf photo, pick Santa Ana, Ahuachapán, or Chalatenango (or use the phone location), then review the leaf. `GET /api/health` returns `{ "ok": true, "sha": "dev" }` locally, and the deployed short commit SHA after a deploy build. `GET /api/risk?place=santa-ana` returns the 7-day rust risk. `POST /api/diagnose` returns `{ "ok": false, "error": "unavailable" }` until the Worker secret `OPENAI_API_KEY` is set (`VISION_MODEL` defaults to `gpt-4.1-mini`). `POST /api/tts` stays unavailable until `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID` are set, and Escuchar then uses the phone voice. `POST /api/ask` answers from the plan screen only when `OPENAI_API_KEY` is set, and otherwise tells the farmer to ask an agronomist.
 
 ```bash
 npm run lint
@@ -28,6 +28,14 @@ npm run build:cloudflare
 ```
 
 A live Worker needs `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`, then `npx wrangler deploy --no-autoconfig`. The flag keeps the OpenNext config. The deploy workflow skips with a message when those GitHub Actions secrets are missing. Planning notes are in `devpost/`.
+
+Escuchar stores audio in the R2 bucket `agroclima-audio` (binding `AUDIO_CACHE` in `wrangler.jsonc`). The object key is the SHA-256 of the capped text plus the voice id. Create the bucket once before a deploy that should cache audio:
+
+```bash
+npx wrangler r2 bucket create agroclima-audio
+```
+
+The deploy workflow runs that create and continues when the bucket already exists. If the binding is missing, Escuchar still plays and skips the cache.
 
 ## Known limitations
 

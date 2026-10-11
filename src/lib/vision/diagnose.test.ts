@@ -16,6 +16,7 @@ import {
   showsActionPlan,
 } from "./copy.ts";
 import { DEPARTMENTS } from "../places.ts";
+import { DEFAULT_OPENAI_MODEL } from "../openai.ts";
 import { diagnoseImage, interpretDiagnosis, parseModelPayload } from "./diagnose.ts";
 
 describe("diagnosis", () => {
@@ -110,6 +111,38 @@ describe("diagnosis", () => {
       assert.equal(parsed.retakeReason, "otra");
       assert.equal(parsed.detail, "No pudimos revisar esta foto.");
     }
+  });
+
+  it("calls gpt-4.1-mini on OpenAI when the key is set and the model is omitted", async () => {
+    let url = "";
+    let model = "";
+    let authorization = "";
+    const result = await diagnoseImage({
+      bytes: new Uint8Array([1]),
+      mediaType: "image/jpeg",
+      env: { apiKey: "secret" },
+      fetchImpl: async (input, init) => {
+        url = String(input);
+        const headers = new Headers(init?.headers);
+        authorization = headers.get("authorization") ?? "";
+        model = JSON.parse(String(init?.body)).model;
+        return Response.json({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({ label: "sana", confidence: 0.9, retake_reason: null }),
+              },
+            },
+          ],
+        });
+      },
+    });
+    assert.equal(url, "https://api.openai.com/v1/chat/completions");
+    assert.equal(model, DEFAULT_OPENAI_MODEL);
+    assert.equal(model, "gpt-4.1-mini");
+    assert.equal(authorization, "Bearer secret");
+    assert.equal(result.ok, true);
+    if (result.ok) assert.equal(result.label, "sana");
   });
 
   it("does not invent a disease when the vendor answers with an HTTP error", async () => {

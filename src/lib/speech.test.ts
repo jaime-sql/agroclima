@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { pickSpanishVoice } from "./speech.ts";
+import { LISTEN_COPY, ORIENTATION_SENTENCE, listenScript, pickSpanishVoice } from "./speech.ts";
 
 describe("Spanish voice", () => {
   it("uses only es-US, then es-MX, then es-ES", () => {
@@ -23,5 +23,22 @@ describe("Spanish voice", () => {
     assert.equal(pickSpanishVoice([{ lang: "es", name: "generic" }]), null);
     assert.equal(pickSpanishVoice([{ lang: "es-SV", name: "sv" }]), null);
     assert.equal(pickSpanishVoice([{ lang: "en-US", name: "en" }]), null);
+  });
+
+  it("reads the result, then the plan, then the week, then the orientation", () => {
+    assert.equal(LISTEN_COPY.idle, "▶ Escuchar");
+    assert.equal(LISTEN_COPY.loading, "Preparando audio…");
+    assert.equal(LISTEN_COPY.playing, "❚❚ Pausar");
+    assert.equal(LISTEN_COPY.again, "▶ Escuchar otra vez");
+    assert.equal(ORIENTATION_SENTENCE, "Es una orientación, no un diagnóstico.");
+    assert.equal(
+      listenScript({
+        result: "Parece roya.",
+        plan: "Cuánto. dosis según etiqueta / su agrónomo.",
+        week: "Jueves alto.",
+      }),
+      "Parece roya. Cuánto. dosis según etiqueta / su agrónomo. Jueves alto. Es una orientación, no un diagnóstico.",
+    );
+    assert.equal(listenScript({ result: "  ", plan: null, week: null }), "");
   });
 });
