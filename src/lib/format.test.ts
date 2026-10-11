@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { dayCardReason, formatChipDate } from "./format.ts";
+import { dayCardReason, dayFiguresLine, formatChipDate } from "./format.ts";
 
 describe("risk tile date", () => {
   it("shows a short weekday and the day of the month", () => {
@@ -15,24 +15,39 @@ describe("risk tile date", () => {
 });
 
 describe("day card reason", () => {
-  it("starts with that day's wet hours, maximum, and rain, then the rule sentence", () => {
+  it("uses the leaf-wetness line, then the rule sentence", () => {
+    assert.equal(
+      dayFiguresLine({ wetHours: 11, tmax: 24, rain: 6 }),
+      "11 h de hoja mojada · máx. 24 °C · lluvia 6 mm",
+    );
     assert.equal(
       dayCardReason({
+        level: "alto",
         wetHours: 11,
         tmax: 24,
         rain: 6,
         reason: "«Hojas mojadas muchas horas y clima tibio: la roya se pega fácil.»",
       }),
-      "11 horas húmedas, máx. 24 °C, lluvia 6 mm. «Hojas mojadas muchas horas y clima tibio: la roya se pega fácil.»",
+      "11 h de hoja mojada · máx. 24 °C · lluvia 6 mm. «Hojas mojadas muchas horas y clima tibio: la roya se pega fácil.»",
     );
+  });
+
+  it("says sin dato for a missing figure and keeps a real zero", () => {
+    const missingRain = dayFiguresLine({ wetHours: 11, tmax: 24, rain: null });
+    assert.equal(missingRain, "11 h de hoja mojada · máx. 24 °C · lluvia: sin dato");
+    assert.equal(missingRain.includes("lluvia 0"), false);
     assert.equal(
-      dayCardReason({
-        wetHours: 1,
-        tmax: 24.4,
-        rain: 0,
-        reason: "«Día seco: la roya casi no avanza.»",
-      }),
-      "1 hora húmeda, máx. 24.4 °C, lluvia 0 mm. «Día seco: la roya casi no avanza.»",
+      dayFiguresLine({ wetHours: null, tmax: null, rain: 0 }),
+      "hoja mojada: sin dato · máx.: sin dato · lluvia 0 mm",
     );
+    const noHours = dayCardReason({
+      level: null,
+      wetHours: null,
+      tmax: null,
+      rain: null,
+      reason: "«sin datos»",
+    });
+    assert.equal(noHours, "No hay pronóstico completo para este día.");
+    assert.equal(/\d/.test(noHours), false);
   });
 });

@@ -1,9 +1,5 @@
-import { dayCardReason, formatChipDate, levelWord } from "./format.ts";
-import {
-  coffeeZoneLabel,
-  FORECAST_MISSING_COPY,
-  FORECAST_UNAVAILABLE_TITLE,
-} from "./vision/copy.ts";
+import { formatWeekdayToken, levelWord } from "./format.ts";
+import { FORECAST_UNAVAILABLE_TITLE } from "./vision/copy.ts";
 import type { RiskLevel } from "./risk/types.ts";
 
 export function whatsAppLink(text: string): string {
@@ -13,34 +9,39 @@ export function whatsAppLink(text: string): string {
 export type RiskStripDay = {
   date: string;
   level: RiskLevel | null;
-  reason: string;
-  wetHours: number;
-  tmax: number | null;
-  rain: number | null;
 };
 
-export function riskStripText(days: RiskStripDay[]): string {
-  return days
-    .map((day) => {
-      if (!day.level) return `${formatChipDate(day.date)}: Sin datos.`;
-      return `${formatChipDate(day.date)}: ${levelWord(day.level)}. ${dayCardReason(day)}`;
-    })
-    .join(" ");
+/** Collapse equal consecutive days, such as "Alto lun–dom". */
+export function collapseLevels(days: RiskStripDay[]): string {
+  const groups: Array<{ label: string; start: string; end: string }> = [];
+  for (const day of days) {
+    const label = day.level ? levelWord(day.level) : "Sin datos";
+    const token = formatWeekdayToken(day.date);
+    const last = groups[groups.length - 1];
+    if (last && last.label === label) last.end = token;
+    else groups.push({ label, start: token, end: token });
+  }
+  return groups
+    .map((group) =>
+      group.start === group.end
+        ? `${group.label} ${group.start}`
+        : `${group.label} ${group.start}\u2013${group.end}`,
+    )
+    .join(", ");
 }
 
-/** Place and the week only. No leaf sentence and no photo. */
+/** Place and the collapsed week only. No leaf sentence and no photo. */
 export function diagnosisErrorShareText(input: {
   placeName: string;
   days: RiskStripDay[];
   forecastUnavailable?: boolean;
 }): string {
-  const place = coffeeZoneLabel(input.placeName);
-  const strip = input.days.length
-    ? riskStripText(input.days)
+  const niveles = input.days.length
+    ? collapseLevels(input.days)
     : input.forecastUnavailable
-      ? `${FORECAST_UNAVAILABLE_TITLE}. ${FORECAST_MISSING_COPY}`
-      : "";
-  return strip ? `${place}. ${strip}` : place;
+      ? FORECAST_UNAVAILABLE_TITLE
+      : "Sin datos";
+  return `AgroClima: Riesgo de roya esta semana en la zona cafetalera de ${input.placeName}: ${niveles}. Es una orientación, no un diagnóstico.`;
 }
 
 export function agronomistSharePayload(input: {

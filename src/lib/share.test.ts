@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { DOSE_NOTE, FUNGICIDE_CLASSES, REASON_ALTO } from "./risk/assess.ts";
+import { DOSE_NOTE, FUNGICIDE_CLASSES } from "./risk/assess.ts";
 import {
   agronomistSharePayload,
   agronomistShareText,
@@ -41,41 +41,48 @@ describe("agronomist share", () => {
     );
   });
 
-  it("shares only the coffee zone and the week when the leaf was not reviewed", () => {
+  it("shares the collapsed week when the leaf was not reviewed", () => {
+    const week = ["2026-10-12", "2026-10-13", "2026-10-14", "2026-10-15", "2026-10-16", "2026-10-17", "2026-10-18"].map(
+      (date) => ({ date, level: "alto" as const }),
+    );
     const payload = agronomistSharePayload({
       diagnoseError: "unavailable",
       summary: "No pudimos revisar la hoja.",
       placeName: "Santa Ana",
       photoDate: "11/10/2026",
-      days: [
-        {
-          date: "2026-10-11",
-          level: "alto",
-          reason: REASON_ALTO,
-          wetHours: 11,
-          tmax: 24,
-          rain: 6,
-        },
-        {
-          date: "2026-10-12",
-          level: null,
-          reason: "«sin datos»",
-          wetHours: 0,
-          tmax: null,
-          rain: null,
-        },
-      ],
+      days: week,
     });
     assert.equal(payload.includePhoto, false);
     assert.equal(
       payload.text,
-      "Zona cafetalera de Santa Ana. Dom 11: Alto. 11 horas húmedas, máx. 24 °C, lluvia 6 mm. «Hojas mojadas muchas horas y clima tibio: la roya se pega fácil.» Lun 12: Sin datos.",
+      "AgroClima: Riesgo de roya esta semana en la zona cafetalera de Santa Ana: Alto lun\u2013dom. Es una orientación, no un diagnóstico.",
     );
     assert.equal(payload.text.includes("No pudimos revisar la hoja"), false);
     assert.equal(payload.text.includes("Foto del"), false);
 
-    const failed = agronomistSharePayload({
+    const mixed = agronomistSharePayload({
       diagnoseError: "failed",
+      summary: "No pudimos revisar la hoja.",
+      placeName: "Chalatenango",
+      photoDate: "11/10/2026",
+      days: [
+        { date: "2026-10-12", level: "alto" },
+        { date: "2026-10-13", level: "alto" },
+        { date: "2026-10-14", level: "medio" },
+        { date: "2026-10-15", level: null },
+        { date: "2026-10-16", level: "bajo" },
+        { date: "2026-10-17", level: "bajo" },
+        { date: "2026-10-18", level: "bajo" },
+      ],
+    });
+    assert.equal(
+      mixed.text,
+      "AgroClima: Riesgo de roya esta semana en la zona cafetalera de Chalatenango: Alto lun\u2013mar, Medio mié, Sin datos jue, Bajo vie\u2013dom. Es una orientación, no un diagnóstico.",
+    );
+    assert.equal(mixed.includePhoto, false);
+
+    const failed = agronomistSharePayload({
+      diagnoseError: "offline",
       summary: "No pudimos revisar la hoja.",
       placeName: "Ahuachapán",
       photoDate: "11/10/2026",
@@ -83,8 +90,10 @@ describe("agronomist share", () => {
       forecastUnavailable: true,
     });
     assert.equal(failed.includePhoto, false);
-    assert.equal(failed.text.includes("No pudimos revisar la hoja"), false);
-    assert.match(failed.text, /^Zona cafetalera de Ahuachapán\. Pronóstico no disponible\./);
+    assert.equal(
+      failed.text,
+      "AgroClima: Riesgo de roya esta semana en la zona cafetalera de Ahuachapán: Pronóstico no disponible. Es una orientación, no un diagnóstico.",
+    );
   });
 
   it("uses the file share path only when canShare accepts files", () => {

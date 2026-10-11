@@ -174,7 +174,7 @@ function missingDay(date: string): DayAssessment {
     level: null,
     reason: REASON_SIN_DATOS,
     score: 0,
-    wetHours: 0,
+    wetHours: null,
     tmax: null,
     rain: null,
     warmWetHours: 0,
@@ -276,14 +276,23 @@ export function assessForecast(forecast: OpenMeteoForecast): WeekAssessment {
     let wetHours = 0;
     let warmWetHours = 0;
     let optWetHours = 0;
+    // Figures use this same local-day hour list. Do not read them from the daily aggregates.
+    let tmax = Number.NEGATIVE_INFINITY;
+    let rain = 0;
     for (const hour of dayHours) {
+      const temperature = hour.temperature_2m;
+      const precipitation = hour.precipitation;
+      if (temperature !== null && temperature > tmax) tmax = temperature;
+      if (precipitation !== null) rain += precipitation;
       if (!isWetHour(hour)) continue;
       wetHours += 1;
-      const temperature = hour.temperature_2m;
       if (temperature === null) continue;
       if (temperature < 15 || temperature > 30) continue;
       warmWetHours += 1;
       if (temperature >= 21 && temperature <= 25) optWetHours += 1;
+    }
+    if (!Number.isFinite(tmax)) {
+      return { date: entry.date, incomplete: true as const, warmWetHours: null };
     }
 
     const rainDay =
@@ -298,7 +307,8 @@ export function assessForecast(forecast: OpenMeteoForecast): WeekAssessment {
       optWetHours,
       rainDay,
       precipitationSum,
-      tempMax,
+      tmax,
+      rain,
       latencyBand,
     };
   });
@@ -340,8 +350,8 @@ export function assessForecast(forecast: OpenMeteoForecast): WeekAssessment {
       }),
       score,
       wetHours: day.wetHours,
-      tmax: day.tempMax,
-      rain: day.precipitationSum,
+      tmax: day.tmax,
+      rain: day.rain,
       warmWetHours: day.warmWetHours,
       optWetHours: day.optWetHours,
       rainDay: day.rainDay,

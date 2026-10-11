@@ -6,7 +6,6 @@ import {
   FORECAST_UNAVAILABLE_TITLE,
   RETRY_LABEL,
   RISK_ZONE_NOTE,
-  SIN_DATOS_CARD,
   SIN_DATOS_MARK,
   SIN_DATOS_WORD,
   riskStripSubtitle,
@@ -132,7 +131,7 @@ export function RiskPanel({
                 ? formatWeekday(day.date)
                 : `${formatWeekday(day.date)}: ${levelWord(day.level)}`}
             </h3>
-            <p className="mt-2">{day.level === null ? SIN_DATOS_CARD : dayCardReason(day)}</p>
+            <p className="mt-2">{dayCardReason(day)}</p>
           </article>
           <a
             className="flex min-h-12 items-center font-semibold text-[#1E5B2A] underline"

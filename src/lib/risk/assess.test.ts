@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, it } from "node:test";
+import { dayCardReason } from "../format.ts";
 import { fetchDepartmentForecast, forecastUrl } from "../weather/openmeteo.ts";
 import {
   ALTITUDE_THRESHOLD,
@@ -213,21 +214,6 @@ describe("coffee rust risk rules", () => {
       alto.reason,
       "«Hojas mojadas muchas horas y clima tibio: la roya se pega fácil.»",
     );
-
-    const counted = assessForecast(
-      forecast([
-        {
-          date: "2026-10-11",
-          hours: wetHours("2026-10-11", 11, 22),
-          temperature_2m_max: 24,
-          precipitation_sum: 6,
-        },
-      ]),
-    ).days[0];
-    assert.equal(counted.wetHours, 11);
-    assert.equal(counted.tmax, 24);
-    assert.equal(counted.rain, 6);
-    assert.equal(counted.level, "alto");
   });
 
   it("R2 gives +2 for ≥6 warm wet hours, +1 for 3–5, and the bonus only when today and the previous date both have ≥6", () => {
@@ -578,7 +564,7 @@ function expectScoredDay(
   if (score !== undefined) assert.equal(day.score, score, `${file} score`);
 }
 
-describe("DR-01 to DR-69 fixtures", () => {
+describe("DR-01 to DR-71 fixtures", () => {
   const scored: Array<[string, RiskLevel | null, string, number?]> = [
     ["dr01_clear_low.json", "bajo", SECO],
     ["dr02_clear_medium.json", "medio", MEDIO],
@@ -656,6 +642,7 @@ describe("DR-01 to DR-69 fixtures", () => {
     assert.equal(week.days[1].date, "2026-10-13");
     assert.equal(week.days[1].level, null);
     assert.equal(week.days[1].reason, REASON_SIN_DATOS);
+    assert.equal(week.days[1].wetHours, null);
     assert.equal(week.days[1].tmax, null);
     assert.equal(week.days[1].rain, null);
     assert.equal(typeof week.days[0].tmax, "number");
@@ -706,6 +693,78 @@ describe("DR-01 to DR-69 fixtures", () => {
     const kept = assessForecast(source);
     assert.equal(kept.available, true);
     assert.equal(kept.timezone, "America/El_Salvador");
+  });
+
+  it("DR-70 same-window numbers come from the scored El Salvador hours", () => {
+    const hours = [
+      ...Array.from({ length: 10 }, (_, index) => ({
+        time: `2026-10-11T${String(index).padStart(2, "0")}:00`,
+        temperature_2m: 22,
+        relative_humidity_2m: 95,
+        precipitation: 0,
+      })),
+      {
+        time: "2026-10-11T10:00",
+        temperature_2m: 24,
+        relative_humidity_2m: 95,
+        precipitation: 6,
+      },
+    ];
+    const day = assessForecast(
+      forecast([
+        {
+          date: "2026-10-11",
+          hours,
+          temperature_2m_max: 31,
+          precipitation_sum: 0,
+          precipitation_probability_max: 0,
+        },
+      ]),
+    ).days[0];
+    assert.equal(day.wetHours, 11);
+    assert.equal(day.tmax, 24);
+    assert.equal(day.rain, 6);
+    assert.equal(day.rainDay, false);
+    assert.equal(day.latencyBand, false);
+    assert.equal(day.level, "medio");
+    assert.equal(
+      dayCardReason(day),
+      "11 h de hoja mojada · máx. 24 °C · lluvia 6 mm. «Humedad o lluvia algunas horas: riesgo moderado.»",
+    );
+  });
+
+  it("DR-71 sin dato never uses 0, and a day with no hours stays sin datos", () => {
+    const week = assessForecast(readFixture("missing_all_hours_for_day.json") as OpenMeteoForecast);
+    const missing = week.days[1];
+    assert.equal(missing.level, null);
+    assert.equal(missing.wetHours, null);
+    assert.equal(missing.tmax, null);
+    assert.equal(missing.rain, null);
+    const card = dayCardReason(missing);
+    assert.equal(card, "No hay pronóstico completo para este día.");
+    assert.equal(/\d/.test(card), false);
+    assert.equal(
+      dayCardReason({
+        ...missing,
+        level: "bajo",
+        wetHours: 0,
+        tmax: 24,
+        rain: null,
+        reason: "«Día seco: la roya casi no avanza.»",
+      }),
+      "0 h de hoja mojada · máx. 24 °C · lluvia: sin dato. «Día seco: la roya casi no avanza.»",
+    );
+    assert.equal(
+      dayCardReason({
+        ...missing,
+        level: "bajo",
+        wetHours: 0,
+        tmax: 24,
+        rain: null,
+        reason: "«Día seco: la roya casi no avanza.»",
+      }).includes("lluvia 0"),
+      false,
+    );
   });
 
   it("DR-68 rejects a forecast whose timezone is not America/El_Salvador", () => {

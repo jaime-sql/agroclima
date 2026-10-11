@@ -1,4 +1,5 @@
 import type { RiskLevel } from "./risk/types";
+import { SIN_DATOS_CARD } from "./vision/copy.ts";
 
 const LEVEL_WORD: Record<RiskLevel, string> = {
   alto: "Alto",
@@ -63,25 +64,39 @@ function formatMeasure(value: number): string {
   return rounded.toFixed(1);
 }
 
-/** "11 horas húmedas, máx. 24 °C, lluvia 6 mm" from that day's own figures. */
+/** Lowercase es-SV short weekday, such as "lun". */
+export function formatWeekdayToken(isoDate: string): string {
+  const weekday = new Intl.DateTimeFormat("es-SV", {
+    weekday: "short",
+    timeZone: "America/El_Salvador",
+  })
+    .format(dateAtNoonElSalvador(isoDate))
+    .replace(/\.$/, "");
+  return weekday.toLocaleLowerCase("es-SV");
+}
+
+/** "11 h de hoja mojada · máx. 24 °C · lluvia 6 mm". A missing figure is "sin dato", never 0. */
 export function dayFiguresLine(day: {
-  wetHours: number;
+  wetHours: number | null;
   tmax: number | null;
   rain: number | null;
 }): string {
-  const hours = day.wetHours === 1 ? "1 hora húmeda" : `${day.wetHours} horas húmedas`;
-  const max = day.tmax === null ? "máx. —" : `máx. ${formatMeasure(day.tmax)} °C`;
-  const rain = day.rain === null ? "lluvia —" : `lluvia ${formatMeasure(day.rain)} mm`;
-  return `${hours}, ${max}, ${rain}`;
+  const hours =
+    day.wetHours === null ? "hoja mojada: sin dato" : `${day.wetHours} h de hoja mojada`;
+  const max = day.tmax === null ? "máx.: sin dato" : `máx. ${formatMeasure(day.tmax)} °C`;
+  const rain = day.rain === null ? "lluvia: sin dato" : `lluvia ${formatMeasure(day.rain)} mm`;
+  return `${hours} · ${max} · ${rain}`;
 }
 
-/** Figures first, then the rule sentence. */
+/** Figures first, then the rule sentence. A day with no level stays "sin datos" and has no numbers. */
 export function dayCardReason(day: {
-  wetHours: number;
+  level: RiskLevel | null;
+  wetHours: number | null;
   tmax: number | null;
   rain: number | null;
   reason: string;
 }): string {
+  if (day.level === null) return SIN_DATOS_CARD;
   return `${dayFiguresLine(day)}. ${day.reason}`;
 }
 

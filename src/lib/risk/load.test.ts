@@ -50,7 +50,7 @@ describe("place risk", () => {
     assert.equal(result.timezone, "America/El_Salvador");
     assert.equal(result.days.length, 7);
     assert.equal(result.days[0].wetHours, 0);
-    assert.equal(result.days[0].tmax, 26);
+    assert.equal(result.days[0].tmax, 24);
     assert.equal(result.days[0].rain, 0);
     assert.equal(result.footer, RISK_CUTOFF_FOOTER);
     assert.deepEqual(result.plan.fungicideClasses, [...FUNGICIDE_CLASSES]);

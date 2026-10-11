@@ -30,10 +30,11 @@ export type DayAssessment = {
   level: RiskLevel | null;
   reason: string;
   score: number;
-  wetHours: number;
-  /** Daily maximum temperature, °C. Null when the day is sin datos. */
+  /** Wet hours in the scored local day. Null when that day was not scored. */
+  wetHours: number | null;
+  /** Max of the same local-day hours, °C. Null when that day was not scored. */
   tmax: number | null;
-  /** Daily precipitation sum, mm. Null when the day is sin datos. */
+  /** Sum of precipitation on those same hours, mm. Null when that day was not scored. */
   rain: number | null;
   warmWetHours: number;
   optWetHours: number;
