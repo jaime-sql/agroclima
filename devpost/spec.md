@@ -12,7 +12,7 @@ The risk module does not know about the web page. It takes weather numbers and r
 
 This shape is a single Next.js app on Cloudflare Workers. There is no database and no login. A separate frontend, a separate API server, and a database would be more moving parts than this proof needs.
 
-The shell in this pass does not call the vision model or Open-Meteo yet. It serves the Spanish home line, answers a health check, and ships the risk module as a stub with one test.
+The shell does not call the vision model yet. It serves the Spanish home line, answers a health check, and scores a 7-day Open-Meteo forecast in `src/lib/risk` using `docs/rust-risk-rules.md`. The page does not show that score yet.
 
 ## The Core Journey Through the System
 PRD ref: `prd.md > The Core Journey`.
@@ -90,15 +90,15 @@ Server route. Builds an OpenAI-compatible chat request with the image, parses th
 PRD ref: `prd.md > Diagnóstico`.
 
 ### Motor de riesgo
-`src/lib/risk`. Pure functions. Input is daily humidity, rain, and temperature. Output is a level and reasons. No network inside this module. The shell ships a stub: it accepts a day and returns that date, level `bajo`, and no reasons. The published thresholds replace the stub in a later slice without moving the file.
+`src/lib/risk`. Pure functions over parsed Open-Meteo hours and days. No network inside this module. Daily level is bajo, medio, or alto from `docs/rust-risk-rules.md`, with one Spanish reason. A dry day is bajo. The footer says the cutoffs are our estimate and are not validated by PROCAFE or MAG.
 PRD ref: `prd.md > Riesgo de la semana`.
 
 ### Pronóstico
-Server-only fetch to Open-Meteo, then a fold from hourly rows into seven daily summaries the risk module can take.
+`src/lib/weather/openmeteo.ts` fetches Open-Meteo for a latitude and longitude. The three points are the GeoNames seats of Santa Ana, Ahuachapán, and Chalatenango.
 PRD ref: `prd.md > Riesgo de la semana`.
 
 ### Plan de acción
-Pure helper next to the risk module. It may cite a dry window from daily rain. It must not contain a dose until a source string is passed in with the step.
+Pure helper in the risk module. Fungicide class only (`cobre`, `triazol`, `triazol+estrobilurina`) plus "dosis según etiqueta / su agrónomo". No numeric dose. The next dry window is 4 hours with precipitation under 0.1 mm, probability under 40%, and RH under 90. The 4 h and 40% are our safety margin.
 PRD ref: `prd.md > Plan de acción`.
 
 ### Escuchar y WhatsApp
@@ -117,9 +117,8 @@ A request holds, in memory only:
 - `photo`: bytes from the upload, discarded after the vision call.
 - `place`: `santa-ana` | `ahuachapan` | `chalatenango`.
 - `diagnosis`: `{ label: "roya" | "sana" | "otro" | "retomar", confidence: number }`.
-- `DayForecast`: `{ date, humidityPct, rainMm, tempC }` for each of seven days.
-- `DayRisk`: `{ date, level: "bajo" | "medio" | "alto", reasons: string[] }`.
-- `plan`: `{ what, howMuch, when, dryWindow, citations }` with `howMuch` allowed to be empty.
+- `DayAssessment`: `{ date, level: "bajo" | "medio" | "alto", reason, score, wetHours, warmWetHours }` for each forecast day.
+- `plan`: fungicide classes, `doseNote` ("dosis según etiqueta / su agrónomo"), and `nextDryWindow` or null. No numeric dose.
 
 When they leave, all of it is gone. Refreshing starts over. That matches "no database."
 
@@ -138,13 +137,15 @@ agroclima/
 │   │       └── risk/route.ts       # later
 │   └── lib/
 │       ├── risk/
-│       │   ├── types.ts            # DayForecast, DayRisk (shell)
-│       │   ├── assess.ts           # stub now, cited rules later
-│       │   └── assess.test.ts      # one passing test (shell)
-│       ├── forecast/               # later: Open-Meteo client
-│       ├── vision/                 # later: hosted model client
-│       ├── plan/                   # later: action + dry window
-│       └── places.ts               # later: three departments, fixed points
+│       │   ├── types.ts            # parsed Open-Meteo forecast and day result
+│       │   ├── assess.ts           # pure rust score, spray window, plan
+│       │   └── assess.test.ts      # one test per rule, no network
+│       ├── weather/
+│       │   ├── openmeteo.ts        # fetch by lat/lon for the three departments
+│       │   └── openmeteo.test.ts   # URL only, no network
+│       └── vision/                 # later: hosted model client
+├── docs/
+│   └── rust-risk-rules.md          # approved rules and citations
 ├── devpost/                        # scope, prd, spec; learner profile is gitignored
 ├── .github/workflows/
 │   ├── ci.yml                      # lint, typecheck, test
@@ -165,17 +166,17 @@ No key. Non-commercial use of the free API fits this proof; confirm that before 
 
 `GET https://api.open-meteo.com/v1/forecast`
 
-Query: `latitude`, `longitude`, `hourly=temperature_2m,relative_humidity_2m,precipitation`, `forecast_days=7`, `timezone=America/El_Salvador`.
+Query: `latitude`, `longitude`, `hourly=temperature_2m,relative_humidity_2m,precipitation,precipitation_probability`, `daily=temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_hours,precipitation_probability_max`, `forecast_days=7`, `timezone=America/El_Salvador`.
 
-Response used: `hourly.time`, `hourly.temperature_2m` (°C), `hourly.relative_humidity_2m` (%), `hourly.precipitation` (mm, preceding hour). Fold each local date into one `DayForecast`: mean temperature, mean humidity, sum of precipitation.
+The pure scorer uses those fields as named in `docs/rust-risk-rules.md`. It does not average them into one temperature.
 
-Fixed points (city seats, not farm boundaries; good enough for a department-scale forecast):
+Fixed points are the GeoNames seats of the three departments (PPLA), cited in `src/lib/weather/openmeteo.ts`:
 
 | Place id | Name | Latitude | Longitude |
 | --- | --- | --- | --- |
-| `santa-ana` | Santa Ana | 13.994 | -89.559 |
-| `ahuachapan` | Ahuachapán | 13.921 | -89.845 |
-| `chalatenango` | Chalatenango | 14.041 | -88.944 |
+| `santa-ana` | Santa Ana | 13.98827 | -89.55685 |
+| `ahuachapan` | Ahuachapán | 13.92403 | -89.84344 |
+| `chalatenango` | Chalatenango | 14.04138 | -88.93951 |
 
 If the browser supplies coordinates, pick the row with the smallest squared distance. Do not store the raw position.
 
@@ -202,13 +203,7 @@ No key. `speechSynthesis` is built into the phone browser. `https://wa.me/?text=
 ### Cloudflare Workers
 Hosting. Docs: https://developers.cloudflare.com/workers/. Secrets for deploy are `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` in GitHub Actions, and the same token for a local `wrangler deploy`. Worker observability: logs and traces enabled in `wrangler.jsonc`.
 
-Published rules the risk module will cite when the stub is replaced (not applied by the stub):
-
-- Germination and infection want liquid water on the leaf and a warm temperature, not humidity alone. Bebber, Castillo, and Gurr, "Modelling coffee leaf rust risk in Colombia with climate reanalysis data" (2016): https://doi.org/10.1098/rstb.2015.0458
-- A favorable band often cited for infection is about 21–24 °C, with relative humidity above about 80% when leaf wetness is present. Capucho and others, "Climate favourability to leaf rust in Conilon coffee," Australasian Plant Pathology (2016): https://doi.org/10.1007/s13313-015-0376-1
-- Optimum germination temperatures reported in the literature cluster around 22–24 °C. Toniutti and others, Frontiers in Plant Science (2017), summarizing de Jong et al. (1987) and Rozo et al. (2012): https://doi.org/10.3389/fpls.2017.02025
-
-Open-Meteo does not return leaf wetness. The module must say that rain and humidity are stand-ins, not a measured wetness duration. Exact numeric cutoffs for bajo, medio, and alto are not in the brief. They get written down next to these citations when the stub is replaced, and the unit tests lock those cutoffs. Until then the stub does not pretend to score a day.
+The scoring rules and citations are `docs/rust-risk-rules.md`. Open-Meteo does not return leaf wetness. A wet hour is relative humidity at or above 90%, or precipitation of at least 0.1 mm. The footer on the assessment says these cutoffs are our estimate and have not been validated by PROCAFE or MAG.
 
 ## Important Failure Modes
 
@@ -218,10 +213,10 @@ Open-Meteo does not return leaf wetness. The module must say that rain and humid
 
 ## What Was Simplified and Why
 
-- **A stub risk module** instead of the cited thresholds — the shell has to exist and the module boundary has to be tested before the forecast is wired. The fuller version applies the citations above and tests each cutoff.
+- **The risk score is computed, and the home page does not show it yet** — the module and its tests are in place; the photo flow is still later.
 - **Three department points** instead of a municipality gazetteer or GPS traces — the brief names those three areas and forbids maps. A gazetteer would not make the kernel clearer.
 - **`wa.me` and built-in speech** instead of WhatsApp's API and a voice vendor — same share and listen behaviors, no extra accounts.
-- **No dose copy** instead of a recommended fungicide rate — a wrong number would be worse than a gap. The plan gains "how much" only with a source.
+- **Class name, not a numeric dose** — the plan says "dosis según etiqueta / su agrónomo". Trial rates in the rules doc stay in that doc.
 - **Health check and home line** as the first runnable slice — reviewers can open the URL before a model key exists.
 
 ## Decisions and Open Issues
