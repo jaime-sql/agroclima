@@ -1,0 +1,57 @@
+/** Visible copy from the mobile flow. Buttons and sentences stay in Spanish. */
+
+export const DIAGNOSE_ERROR_COPY = "Algo salió mal. Intente otra vez.";
+
+export const RETRY_LABEL = "Intentar de nuevo";
+
+export const OFFLINE_COPY =
+  'Sin señal. Su foto está guardada en este teléfono. Toque "Intentar de nuevo" cuando tenga señal.';
+
+export const FORECAST_MISSING_COPY =
+  "No hay pronóstico ahora. El resultado de la hoja sigue siendo válido.";
+
+export const GEO_DENIED_COPY =
+  "No pudimos usar su ubicación. Elija su municipio.";
+
+export const ORIENTATION_ROYA =
+  "Esto es una orientación, no un diagnóstico. Confirme con un agrónomo.";
+
+export const ORIENTATION_SANA =
+  "Esto es una orientación, no un diagnóstico.";
+
+export const SANA_DETAIL =
+  "No vemos señales de roya en esta hoja. Revise otras plantas cada semana.";
+
+export const OTRO_DETAIL =
+  "No parece roya, pero la hoja tiene algo. Esta app solo revisa roya.";
+
+export const UNSURE_DETAIL =
+  "No le damos un plan para no aconsejarle mal. Envíe el resultado a su agrónomo o cooperativa.";
+
+export const CONTACTS_PENDING =
+  "Contactos PROCAFE / CENTA: pendiente de verificar";
+
+export const CONFIRM_AGRONOMIST = "Confirme con un agrónomo";
+
+export const RETAKE_COPY = {
+  borrosa: {
+    reason: "La foto está borrosa.",
+    advice:
+      "Sostenga el teléfono quieto con las dos manos. Toque la hoja en la pantalla para enfocar.",
+  },
+  no_hoja: {
+    reason: "No vemos una hoja de café.",
+    advice: "Ponga una sola hoja de café en el centro, sobre su mano o un papel.",
+  },
+  lejos: {
+    reason: "La hoja está muy lejos.",
+    advice: "Acérquese a un palmo de la hoja. Que la hoja llene la pantalla.",
+  },
+  otra: {
+    reason: "No pudimos revisar esta foto.",
+    advice:
+      "Tome la foto de día, con buena luz y sin sol directo. Una sola hoja, de cerca.",
+  },
+} as const;
+
+export type RetakeReason = keyof typeof RETAKE_COPY;

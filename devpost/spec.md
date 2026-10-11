@@ -12,14 +12,14 @@ The risk module does not know about the web page. It takes weather numbers and r
 
 This shape is a single Next.js app on Cloudflare Workers. There is no database and no login. A separate frontend, a separate API server, and a database would be more moving parts than this proof needs.
 
-The shell does not call the vision model yet. It serves the Spanish home line, answers a health check, and scores a 7-day Open-Meteo forecast in `src/lib/risk` using `docs/rust-risk-rules.md`. The page does not show that score yet.
+The page is the Spanish phone flow: a leaf photo, a municipio, `/api/diagnose`, and a 7-day Open-Meteo risk from `src/lib/risk` using `docs/rust-risk-rules.md`. Without `VISION_API_KEY`, diagnose returns unavailable and the week still loads.
 
 ## The Core Journey Through the System
 PRD ref: `prd.md > The Core Journey`.
 
-1. The phone opens `/`. The server renders the Spanish page. In this pass that page is the name and the promise only.
-2. Later, the page sends the photo and the department to `POST /api/diagnose` on this same app. The handler reads `VISION_API_KEY` on the server, calls the vision endpoint, and returns one of roya, sana, otro problema, or retomar, plus a confidence. The key is not in the response.
-3. The page, or that same handler, calls `GET /api/risk?place=chalatenango`. The handler looks up a fixed point for that department, calls Open-Meteo, and passes each day's humidity, rain, and temperature into `src/lib/risk`. The module returns seven days.
+1. The phone opens `/`. The server renders the Spanish page: photo, municipio, and the answer steps.
+2. The page sends the photo to `POST /api/diagnose` on this same app. The handler reads `VISION_API_KEY` on the server. If it is missing, the response is `{ "ok": false, "error": "unavailable" }` and the page does not invent a disease. If it is set, the handler calls the vision endpoint and returns one of roya, sana, otro, or retomar, plus a confidence. The key is not in the response.
+3. The page calls `GET /api/risk?place=chalatenango`. The handler looks up a fixed point for that department, calls Open-Meteo, and passes each day's humidity, rain, and temperature into `src/lib/risk`. The module returns seven days.
 4. The action helper reads the diagnosis and the seven days and returns what, how much, when, and the next dry window. "How much" stays empty until a citation is in the code.
 5. The browser speaks the answer with `speechSynthesis` in Spanish, and opens `https://wa.me/?text=` with the same words.
 6. `GET /api/health` returns `{ "ok": true }` so a deploy can be checked without a photo.
@@ -129,12 +129,12 @@ agroclima/
 ├── src/
 │   ├── app/
 │   │   ├── layout.tsx              # html lang=es
-│   │   ├── page.tsx                # home: name + promise (shell)
+│   │   ├── page.tsx                # Spanish phone flow
 │   │   ├── globals.css
 │   │   └── api/
 │   │       ├── health/route.ts     # { ok: true } (shell)
-│   │       ├── diagnose/route.ts   # later
-│   │       └── risk/route.ts       # later
+│   │       ├── diagnose/route.ts   # vision, or unavailable without a key
+│   │       └── risk/route.ts       # Open-Meteo plus the risk module
 │   └── lib/
 │       ├── risk/
 │       │   ├── types.ts            # parsed Open-Meteo forecast and day result
@@ -143,7 +143,7 @@ agroclima/
 │       ├── weather/
 │       │   ├── openmeteo.ts        # fetch by lat/lon for the three departments
 │       │   └── openmeteo.test.ts   # URL only, no network
-│       └── vision/                 # later: hosted model client
+│       └── vision/                 # hosted model client and Spanish result copy
 ├── docs/
 │   └── rust-risk-rules.md          # approved rules and citations
 ├── devpost/                        # scope, prd, spec; learner profile is gitignored

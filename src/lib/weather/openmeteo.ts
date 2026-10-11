@@ -65,8 +65,9 @@ export function forecastUrl(latitude: number, longitude: number): string {
 export async function fetchForecast(
   latitude: number,
   longitude: number,
+  fetchImpl: typeof fetch = fetch,
 ): Promise<OpenMeteoForecast> {
-  const response = await fetch(forecastUrl(latitude, longitude));
+  const response = await fetchImpl(forecastUrl(latitude, longitude));
   if (!response.ok) {
     throw new Error(`Open-Meteo forecast failed (${response.status})`);
   }
