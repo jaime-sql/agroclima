@@ -1,8 +1,56 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# opennext / wrangler
+/.open-next/
+/.wrangler/
+.dev.vars
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+!.env.example
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
 # Personal learning context stays out of commits.
 /devpost/learner-profile.md
 
-# Local secrets. Names live in .env.example only.
-.env
-.env.*
-!.env.example
-.dev.vars
+# Local skill-pack install used to draft the planning docs.
+/.agents/
+/.claude/
+/agent/
+/skills-lock.json
