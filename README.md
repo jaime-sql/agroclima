@@ -17,7 +17,7 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000. The page is in Spanish: take or upload a leaf photo, pick Santa Ana, Ahuachapán, or Chalatenango (or use the phone location), then review the leaf. `GET /api/health` returns `{ "ok": true, "sha": "dev" }` locally, and the deployed short commit SHA after a deploy build. `GET /api/risk?place=santa-ana` returns the 7-day rust risk. `POST /api/diagnose` returns `{ "ok": false, "error": "unavailable" }` until `VISION_API_KEY` is set.
+Open http://localhost:3000. The page is in Spanish: take or upload a leaf photo, pick Santa Ana, Ahuachapán, or Chalatenango (or use the phone location), then review the leaf. `GET /api/health` returns `{ "ok": true, "sha": "dev" }` locally, and the deployed short commit SHA after a deploy build. `GET /api/risk?place=santa-ana` returns the 7-day rust risk. `POST /api/diagnose` returns `{ "ok": false, "error": "unavailable" }` until the Worker secret `OPENAI_API_KEY` is set (`VISION_MODEL` defaults to `gpt-4.1-mini`). `POST /api/tts` stays unavailable until `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID` are set, and Escuchar then uses the phone voice. `POST /api/ask` answers from the plan screen only when `OPENAI_API_KEY` is set, and otherwise tells the farmer to ask an agronomist.
 
 ```bash
 npm run lint

@@ -1,29 +1,15 @@
-import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { diagnoseImage, type VisionEnv } from "@/lib/vision/diagnose";
+import { readServerEnv } from "@/lib/server-env";
 
 const MAX_BYTES = 2_000_000;
 
 function readVisionEnv(): VisionEnv {
-  const fromProcess: VisionEnv = {
-    apiKey: process.env.VISION_API_KEY,
-    baseUrl: process.env.VISION_API_BASE_URL,
-    model: process.env.VISION_MODEL,
+  const env = readServerEnv();
+  return {
+    apiKey: env.OPENAI_API_KEY,
+    baseUrl: env.VISION_API_BASE_URL,
+    model: env.VISION_MODEL,
   };
-  try {
-    const { env } = getCloudflareContext();
-    const record = env as typeof env & {
-      VISION_API_KEY?: string;
-      VISION_API_BASE_URL?: string;
-      VISION_MODEL?: string;
-    };
-    return {
-      apiKey: record.VISION_API_KEY || fromProcess.apiKey,
-      baseUrl: record.VISION_API_BASE_URL || fromProcess.baseUrl,
-      model: record.VISION_MODEL || fromProcess.model,
-    };
-  } catch {
-    return fromProcess;
-  }
 }
 
 export async function POST(request: Request) {

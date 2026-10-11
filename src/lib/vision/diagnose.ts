@@ -1,3 +1,4 @@
+import { resolveOpenAI } from "../openai.ts";
 import {
   CONFIRM_AGRONOMIST,
   ORIENTATION_ROYA,
@@ -192,7 +193,7 @@ function messageText(body: unknown): string | null {
 }
 
 export function visionConfigured(env: VisionEnv): boolean {
-  return Boolean(env.apiKey && env.baseUrl && env.model);
+  return resolveOpenAI(env) !== null;
 }
 
 export async function diagnoseImage(options: {
@@ -201,22 +202,22 @@ export async function diagnoseImage(options: {
   env: VisionEnv;
   fetchImpl?: typeof fetch;
 }): Promise<Diagnosis> {
-  if (!visionConfigured(options.env)) {
+  const openai = resolveOpenAI(options.env);
+  if (!openai) {
     return { ok: false, error: "unavailable" };
   }
   const fetchImpl = options.fetchImpl ?? fetch;
-  const baseUrl = options.env.baseUrl!.replace(/\/$/, "");
   const dataUrl = `data:${options.mediaType};base64,${bytesToBase64(options.bytes)}`;
   let response: Response;
   try {
-    response = await fetchImpl(`${baseUrl}/chat/completions`, {
+    response = await fetchImpl(`${openai.baseUrl}/chat/completions`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${options.env.apiKey}`,
+        Authorization: `Bearer ${openai.apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: options.env.model,
+        model: openai.model,
         temperature: 0,
         messages: [
           {

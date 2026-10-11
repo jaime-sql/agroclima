@@ -17,6 +17,7 @@ import {
   showsActionPlan,
 } from "@/lib/vision/copy";
 import type { Diagnosis } from "@/lib/vision/diagnose";
+import { AskBox } from "./ask-box";
 import { ListenButton } from "./listen-button";
 import { RiskPanel, type RiskView } from "./risk-panel";
 
@@ -260,6 +261,22 @@ export function HomeFlow() {
         <>
           <h1 className="text-2xl font-semibold">Su plan</h1>
           <RiskPanel risk={risk} loading={false} failed={false} showPlan />
+          <AskBox
+            place={risk.place.name}
+            days={risk.days.slice(0, 7).map((day) => ({
+              date: day.date,
+              level: day.level,
+              wetHours: day.wetHours,
+              tmax: day.tmax,
+              rain: day.rain,
+              reason: day.reason,
+            }))}
+            diagnosis={
+              diagnosis?.ok
+                ? { headline: diagnosis.headline, detail: diagnosis.detail }
+                : null
+            }
+          />
           <button type="button" className={primary} onClick={() => setStep("compartir")}>
             Escuchar o compartir
           </button>

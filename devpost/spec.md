@@ -12,13 +12,13 @@ The risk module does not know about the web page. It takes weather numbers and r
 
 This shape is a single Next.js app on Cloudflare Workers. There is no database and no login. A separate frontend, a separate API server, and a database would be more moving parts than this proof needs.
 
-The page is the Spanish phone flow: a leaf photo, a municipio, `/api/diagnose`, and a 7-day Open-Meteo risk from `src/lib/risk` using `docs/rust-risk-rules.md`. Without `VISION_API_KEY`, diagnose returns unavailable and the week still loads.
+The page is the Spanish phone flow: a leaf photo, a municipio, `/api/diagnose`, and a 7-day Open-Meteo risk from `src/lib/risk` using `docs/rust-risk-rules.md`. Without `OPENAI_API_KEY`, diagnose returns unavailable and the week still loads.
 
 ## The Core Journey Through the System
 PRD ref: `prd.md > The Core Journey`.
 
 1. The phone opens `/`. The server renders the Spanish page: photo, municipio, and the answer steps.
-2. The page sends the photo to `POST /api/diagnose` on this same app. The handler reads `VISION_API_KEY` on the server. If it is missing, the response is `{ "ok": false, "error": "unavailable" }` and the page does not invent a disease. If it is set, the handler calls the vision endpoint and returns one of roya, sana, otro, or retomar, plus a confidence. The key is not in the response.
+2. The page sends the photo to `POST /api/diagnose` on this same app. The handler reads the Worker secret `OPENAI_API_KEY`. If it is missing, the response is `{ "ok": false, "error": "unavailable" }` and the page does not invent a disease. If it is set, the handler calls OpenAI (`VISION_MODEL`, default `gpt-4.1-mini`) and returns one of roya, sana, otro, or retomar, plus a confidence. The key is not in the response.
 3. The page calls `GET /api/risk?place=chalatenango`. The handler looks up a fixed point for that department, calls Open-Meteo, and passes each day's humidity, rain, and temperature into `src/lib/risk`. The module returns seven days.
 4. The action helper reads the diagnosis and the seven days and returns what, how much, when, and the next dry window. "How much" stays empty until a citation is in the code.
 5. The browser speaks the answer with `speechSynthesis` in Spanish, and opens `https://wa.me/?text=` with the same words.
@@ -183,22 +183,27 @@ If the browser supplies coordinates, pick the row with the smallest squared dist
 Rate limits: the free API asks for fair use. One forecast per diagnosis is enough. If the call fails, the diagnosis still returns and the week shows the forecast-missing state.
 
 ### Hosted vision model
-Docs for the wire shape: https://platform.openai.com/docs/guides/images-vision (OpenAI-compatible chat completions). The vendor is not chosen. Set these on the server only, names with empty values in `.env.example`:
+Docs for the wire shape: https://platform.openai.com/docs/guides/images-vision. Set these on the server only. `.env.example` leaves the secrets empty:
 
-- `VISION_API_BASE_URL` — origin plus path prefix, no trailing slash, for example a provider's `/v1` base
-- `VISION_API_KEY`
-- `VISION_MODEL`
+- `OPENAI_API_KEY` — Worker secret. No key means HTTP 503 `{ "ok": false, "error": "unavailable" }` and no network call.
+- `VISION_MODEL` — optional, default `gpt-4.1-mini`.
+- `VISION_API_BASE_URL` — optional, default `https://api.openai.com/v1`.
 
-`POST {VISION_API_BASE_URL}/chat/completions`
+`POST {base}/chat/completions`
 
-Header: `Authorization: Bearer <VISION_API_KEY>`.
+Header: `Authorization: Bearer <OPENAI_API_KEY>`.
 
-Body: `model`, one user message, text instruction plus the image as an `image_url` data URL. Instruction asks for JSON only: `label` of `roya` | `sana` | `otro` | `retomar`, and `confidence` from 0 to 1. Temperature 0.
+Body: `model`, temperature 0, one user message, text instruction plus the image as an `image_url` data URL. Instruction asks for JSON only: `label` of `roya` | `sana` | `otro` | `retomar`, `confidence` from 0 to 1, and `retake_reason`. Confidence cutoffs are unchanged.
 
-Anything other than that JSON, or any HTTP error, becomes `retomar` with confidence 0. Cost and rate limits depend on the vendor the entrant picks. Unverified until that vendor is set: image size limits and whether `image_url` accepts a data URL. Check both on the first real photo.
+Anything other than that JSON, or any HTTP error from the vendor, becomes `retomar` with confidence 0. A missing key is the only `unavailable` path.
+
+### Listen (ElevenLabs) and ask
+`POST /api/tts` runs only when the farmer taps Escuchar. It needs the Worker secret `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID`, and it calls ElevenLabs `eleven_multilingual_v2`. Text is capped at 2,500 characters. Successful MPEG is stored in the Cache API under the SHA-256 of that text. There are no KV writes. No key, no voice id, or a vendor error falls back to `speechSynthesis` (es-US, then es-MX, then es-ES). If that voice is missing too, the screen says it could not read aloud.
+
+`POST /api/ask` is the box under the plan, titled «Pregúntele a AgroClima». It uses the same OpenAI key and `gpt-4.1-mini`. The reply may use only the place, the 7-day risk numbers, the rule text, and the diagnosis sent from that screen. The system prompt answers in simple Spanish, stops doses at «según etiqueta», names no brands or other crops, invents no farm weather, points to an agronomist when unsure, and ignores instructions inside the question. Questions are limited to 400 characters and replies to 280 tokens. Each address gets 8 questions per 10 minutes, counted in memory with no question text stored. No key returns "AgroClima no puede responder ahora. Pregúntele a su agrónomo." A real model call adds `X-Agroclima-Prompt-Tokens`, `X-Agroclima-Completion-Tokens`, and `X-Agroclima-Latency-Ms`. Those headers are counts and milliseconds only.
 
 ### Browser speech and WhatsApp
-No key. `speechSynthesis` is built into the phone browser. `https://wa.me/?text=` is a normal link. If speech is missing, the text remains.
+`speechSynthesis` is the fallback when server audio is unavailable. `https://wa.me/?text=` is a normal link. If both the server and the phone voice fail, the text remains.
 
 ### Cloudflare Workers
 Hosting. Docs: https://developers.cloudflare.com/workers/. Secrets for deploy are `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` in GitHub Actions, and the same token for a local `wrangler deploy`. Worker observability: logs and traces enabled in `wrangler.jsonc`.
