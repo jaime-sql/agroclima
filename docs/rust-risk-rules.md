@@ -34,7 +34,7 @@ Spanish reason (pick the top factor):
 - R5: the diurnal-range (max−min) condition is dropped; only temperature_2m_max 22–28 °C scores.
 - Daily precipitation_sum ≥ 1 mm with 0 wet hours → bajo, «Llueve, pero sin horas húmedas favorables a la roya».
 - A day with missing hourly data (fewer than 24 hours) or a null in a required field (hourly temperature_2m, relative_humidity_2m, precipitation; daily temperature_2m_max, precipitation_sum, precipitation_probability_max) → «sin datos», no level. Hourly precipitation_probability is not required (spray window only).
-- Any fetch failure, empty reply, or reply whose timezone ≠ America/El_Salvador → «pronóstico no disponible» for the whole strip, no levels.
+- Any fetch failure, empty reply, missing timezone, or reply whose timezone ≠ America/El_Salvador → «pronóstico no disponible» for the whole strip, no levels.
 
 ## 3. Open-Meteo fields (verified at https://open-meteo.com/en/docs, 2026-10-10)
 Endpoint `/v1/forecast`, `forecast_days=7` (default), `timezone=America/El_Salvador`, lat/lon of municipality (`elevation` optional, default 90 m DEM downscaling).

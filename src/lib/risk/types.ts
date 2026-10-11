@@ -50,8 +50,10 @@ export type ActionPlan = {
 };
 
 export type WeekAssessment = {
-  /** False for a bad, empty, or wrong-timezone forecast. No day levels. */
+  /** False for a bad, empty, missing-timezone, or wrong-timezone forecast. No day levels. */
   available: boolean;
+  /** The forecast timezone when the week was scored. Null when the reply was rejected. */
+  timezone: string | null;
   days: DayAssessment[];
   plan: ActionPlan;
   footer: string;

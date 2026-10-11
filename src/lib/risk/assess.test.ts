@@ -85,7 +85,7 @@ function forecast(days: DayInput[], pad = true): OpenMeteoForecast {
     }
   }
 
-  return { hourly, daily };
+  return { timezone: "America/El_Salvador", hourly, daily };
 }
 
 function wetHours(date: string, count: number, temperature: number): HourInput[] {
@@ -674,6 +674,19 @@ describe("DR-01 to DR-68 fixtures", () => {
     const url = new URL(forecastUrl(13.98827, -89.55685));
     assert.equal(url.searchParams.get("timezone"), "America/El_Salvador");
     assert.equal(url.searchParams.get("forecast_days"), "7");
+  });
+
+  it("DR-69 rejects a forecast that has no timezone field", () => {
+    const source = readFixture("dr01_clear_low.json") as OpenMeteoForecast;
+    const withoutTimezone = { ...source };
+    delete withoutTimezone.timezone;
+    const week = assessForecast(withoutTimezone);
+    assert.equal(week.available, false);
+    assert.equal(week.timezone, null);
+    assert.equal(week.days.length, 0);
+    const kept = assessForecast(source);
+    assert.equal(kept.available, true);
+    assert.equal(kept.timezone, "America/El_Salvador");
   });
 
   it("DR-68 rejects a forecast whose timezone is not America/El_Salvador", () => {

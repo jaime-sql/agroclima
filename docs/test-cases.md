@@ -235,10 +235,11 @@ Expected levels were computed with an independent script following the rules (no
 | DR-66 | (none: request) | Call forecastUrl(13.98827,-89.55685) | URL has timezone=America/El_Salvador and forecast_days=7 |  |
 | DR-67 | `tz_late_night_wet_hours.json` | Load fixture → assessForecast(); read all days[] | 10-12 medio (wet 20:00–23:00 local count on 10-12); 10-13 bajo seco | local 23:00 must not roll to next day |
 | DR-68 | `tz_wrong_timezone_utc.json` | Load fixture → assessForecast(); read all days[] | «pronóstico no disponible». Code: accepts the reply → FAIL | timezone GMT, offset 0 |
+| DR-69 | (none: drop `timezone` from a scored fixture) | Load a valid fixture, delete `timezone`, call assessForecast() | available false, days [], «pronóstico no disponible». Same as a wrong timezone | a reply with no timezone field |
 
 ## Decided Oct 11 (now in rust_risk_rules.md §2a)
-- Bajo days use a bajo sentence. Bonus needs the previous calendar date present (day 1 never). Optimum needs ≥ 3 h. DTR dropped. Rain ≥ 1 mm with 0 wet h → bajo «Llueve, pero sin horas húmedas favorables a la roya». Missing hours or nulls → «sin datos». Fetch failure, empty reply or wrong timezone → «pronóstico no disponible».
+- Bajo days use a bajo sentence. Bonus needs the previous calendar date present (day 1 never). Optimum needs ≥ 3 h. DTR dropped. Rain ≥ 1 mm with 0 wet h → bajo «Llueve, pero sin horas húmedas favorables a la roya». Missing hours or nulls → «sin datos». Fetch failure, empty reply, missing timezone, or wrong timezone → «pronóstico no disponible».
 
 - Oct 11 (2): bonus needs today AND previous date ≥ 6; score 0–1 with warm wet hours → «Pocas horas húmedas favorables; riesgo bajo de roya».
 
-Case count: 68.
+Case count: 69.

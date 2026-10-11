@@ -186,6 +186,7 @@ function missingDay(date: string): DayAssessment {
 function unavailableWeek(): WeekAssessment {
   return {
     available: false,
+    timezone: null,
     days: [],
     plan: buildPlan(null),
     footer: RISK_CUTOFF_FOOTER,
@@ -196,7 +197,7 @@ function forecastUsable(forecast: OpenMeteoForecast): forecast is OpenMeteoForec
   hourly: OpenMeteoHourly;
   daily: OpenMeteoDaily;
 } {
-  if (forecast.timezone && forecast.timezone !== "America/El_Salvador") return false;
+  if (forecast.timezone !== "America/El_Salvador") return false;
   const hourly = forecast.hourly;
   const daily = forecast.daily;
   if (!hourly || !daily) return false;
@@ -346,6 +347,7 @@ export function assessForecast(forecast: OpenMeteoForecast): WeekAssessment {
 
   return {
     available: true,
+    timezone: "America/El_Salvador",
     days,
     plan: buildPlan(nextDrySprayWindow(forecast.hourly)),
     footer: RISK_CUTOFF_FOOTER,
