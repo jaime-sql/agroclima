@@ -94,7 +94,7 @@ PRD ref: `prd.md > Diagnóstico`.
 PRD ref: `prd.md > Riesgo de la semana`.
 
 ### Pronóstico
-`src/lib/weather/openmeteo.ts` fetches Open-Meteo for a latitude and longitude. The three points are the GeoNames seats of Santa Ana, Ahuachapán, and Chalatenango.
+`src/lib/weather/openmeteo.ts` fetches Open-Meteo for a latitude and longitude. The three points are representative coffee zones for Santa Ana, Ahuachapán, and Chalatenango, with elevation stored beside the coordinates in `PLACE_COORDINATES`.
 PRD ref: `prd.md > Riesgo de la semana`.
 
 ### Plan de acción
@@ -170,13 +170,13 @@ Query: `latitude`, `longitude`, `hourly=temperature_2m,relative_humidity_2m,prec
 
 The pure scorer uses those fields as named in `docs/rust-risk-rules.md`. It does not average them into one temperature.
 
-Fixed points are the GeoNames seats of the three departments (PPLA), cited in `src/lib/weather/openmeteo.ts`:
+Fixed points are representative coffee zones in `PLACE_COORDINATES`, not the user's farm:
 
-| Place id | Name | Latitude | Longitude |
-| --- | --- | --- | --- |
-| `santa-ana` | Santa Ana | 13.98827 | -89.55685 |
-| `ahuachapan` | Ahuachapán | 13.92403 | -89.84344 |
-| `chalatenango` | Chalatenango | 14.04138 | -88.93951 |
+| Place id | Name | Latitude | Longitude | Elevation (m) |
+| --- | --- | --- | --- | --- |
+| `santa-ana` | Santa Ana | 13.88 | -89.61 | 1432 |
+| `ahuachapan` | Ahuachapán | 13.855 | -89.835 | 1290 |
+| `chalatenango` | Chalatenango | 14.33 | -89.16 | 1237 |
 
 If the browser supplies coordinates, pick the row with the smallest squared distance. Do not store the raw position.
 

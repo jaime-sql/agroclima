@@ -11,17 +11,22 @@ describe("preset places", () => {
   });
 
   it("reads each seat from the single coordinate config", () => {
+    assert.deepEqual(PLACE_COORDINATES, {
+      "santa-ana": { latitude: 13.88, longitude: -89.61, elevation: 1432 },
+      ahuachapan: { latitude: 13.855, longitude: -89.835, elevation: 1290 },
+      chalatenango: { latitude: 14.33, longitude: -89.16, elevation: 1237 },
+    });
     for (const place of DEPARTMENTS) {
       assert.deepEqual(
-        { latitude: place.latitude, longitude: place.longitude },
+        { latitude: place.latitude, longitude: place.longitude, elevation: place.elevation },
         PLACE_COORDINATES[place.id],
       );
     }
   });
 
   it("picks the nearest preset seat from a coordinate", () => {
-    assert.equal(nearestPlace(13.99, -89.56).id, "santa-ana");
-    assert.equal(nearestPlace(13.92, -89.84).id, "ahuachapan");
-    assert.equal(nearestPlace(14.04, -88.94).id, "chalatenango");
+    assert.equal(nearestPlace(13.89, -89.62).id, "santa-ana");
+    assert.equal(nearestPlace(13.86, -89.84).id, "ahuachapan");
+    assert.equal(nearestPlace(14.32, -89.15).id, "chalatenango");
   });
 });

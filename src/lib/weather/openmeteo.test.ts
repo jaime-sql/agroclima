@@ -9,19 +9,23 @@ describe("Open-Meteo request", () => {
       ["Santa Ana", "Ahuachapán", "Chalatenango"],
     );
     assert.deepEqual(
-      DEPARTMENTS.map((department) => [department.latitude, department.longitude]),
+      DEPARTMENTS.map((department) => [
+        department.latitude,
+        department.longitude,
+        department.elevation,
+      ]),
       [
-        [13.98827, -89.55685],
-        [13.92403, -89.84344],
-        [14.04138, -88.93951],
+        [13.88, -89.61, 1432],
+        [13.855, -89.835, 1290],
+        [14.33, -89.16, 1237],
       ],
     );
 
     const santaAna = DEPARTMENTS[0];
     const url = new URL(forecastUrl(santaAna.latitude, santaAna.longitude));
     assert.equal(url.origin + url.pathname, "https://api.open-meteo.com/v1/forecast");
-    assert.equal(url.searchParams.get("latitude"), "13.98827");
-    assert.equal(url.searchParams.get("longitude"), "-89.55685");
+    assert.equal(url.searchParams.get("latitude"), "13.88");
+    assert.equal(url.searchParams.get("longitude"), "-89.61");
     assert.equal(url.searchParams.get("timezone"), "America/El_Salvador");
     assert.equal(url.searchParams.get("forecast_days"), "7");
     assert.equal(

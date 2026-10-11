@@ -232,7 +232,7 @@ Expected levels were computed with an independent script following the rules (no
 |---|---|---|---|---|
 | DR-64 | `strip_7day_ordered.json` | Load fixture → assessForecast(); read all days[] | 7 days 10-12…10-18 in order: bajo(seco), medio, alto, bajo «Pocas horas…» (score 1, no bonus: today 3 h), medio, alto, bajo(temp) | day 6 alto via bonus from day 5 |
 | DR-65 | `strip_7day_shuffled.json` | Load fixture → assessForecast(); read all days[] | Identical to strip_7day_ordered (engine sorts by date) | daily + hourly arrays reversed |
-| DR-66 | (none: request) | Call forecastUrl(13.98827,-89.55685) | URL has timezone=America/El_Salvador and forecast_days=7 |  |
+| DR-66 | (none: request) | Call forecastUrl(13.88,-89.61) | URL has timezone=America/El_Salvador and forecast_days=7 |  |
 | DR-67 | `tz_late_night_wet_hours.json` | Load fixture → assessForecast(); read all days[] | 10-12 medio (wet 20:00–23:00 local count on 10-12); 10-13 bajo seco | local 23:00 must not roll to next day |
 | DR-68 | `tz_wrong_timezone_utc.json` | Load fixture → assessForecast(); read all days[] | «pronóstico no disponible». Code: accepts the reply → FAIL | timezone GMT, offset 0 |
 | DR-69 | (none: drop `timezone` from a scored fixture) | Load a valid fixture, delete `timezone`, call assessForecast() | available false, days [], «pronóstico no disponible». Same as a wrong timezone | a reply with no timezone field |

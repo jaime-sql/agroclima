@@ -671,7 +671,7 @@ describe("DR-01 to DR-69 fixtures", () => {
   });
 
   it("DR-66 requests America/El_Salvador for seven days", () => {
-    const url = new URL(forecastUrl(13.98827, -89.55685));
+    const url = new URL(forecastUrl(13.88, -89.61));
     assert.equal(url.searchParams.get("timezone"), "America/El_Salvador");
     assert.equal(url.searchParams.get("forecast_days"), "7");
   });

@@ -1,15 +1,12 @@
 /**
- * Seats of the three departments (GeoNames PPLA), not polygon centroids
- * and not a farm. Retrieved 2026-10-11.
- * Swap these numbers here when the coffee-zone coordinates arrive.
- * Santa Ana 13.98827, -89.55685 — https://www.geonames.org/3583334/santa-ana.html
- * Ahuachapán 13.92403, -89.84344 — https://www.geonames.org/3587426/ahuachapan.html
- * Chalatenango 14.04138, -88.93951 — https://www.geonames.org/3587091/chalatenango.html
+ * Representative coffee-zone points (ISC origin zones Apaneca-Ilamatepec
+ * and Alotepec), not the user's farm. Elevations are meters.
+ * Swap latitude, longitude, and elevation in this object.
  */
 export const PLACE_COORDINATES = {
-  "santa-ana": { latitude: 13.98827, longitude: -89.55685 },
-  ahuachapan: { latitude: 13.92403, longitude: -89.84344 },
-  chalatenango: { latitude: 14.04138, longitude: -88.93951 },
+  "santa-ana": { latitude: 13.88, longitude: -89.61, elevation: 1432 },
+  ahuachapan: { latitude: 13.855, longitude: -89.835, elevation: 1290 },
+  chalatenango: { latitude: 14.33, longitude: -89.16, elevation: 1237 },
 } as const;
 
 export const DEPARTMENTS = [
