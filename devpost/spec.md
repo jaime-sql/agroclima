@@ -22,7 +22,7 @@ PRD ref: `prd.md > The Core Journey`.
 3. The page calls `GET /api/risk?place=chalatenango`. The handler looks up a fixed point for that department, calls Open-Meteo, and passes each day's humidity, rain, and temperature into `src/lib/risk`. The module returns seven days.
 4. The action helper reads the diagnosis and the seven days and returns what, how much, when, and the next dry window. "How much" stays empty until a citation is in the code.
 5. The browser speaks the answer with `speechSynthesis` in Spanish, and opens `https://wa.me/?text=` with the same words.
-6. `GET /api/health` returns `{ "ok": true }` so a deploy can be checked without a photo.
+6. `GET /api/health` returns `{ "ok": true, "sha": "<short sha>" }` so a deploy can be checked without a photo. The sha is the first 7 characters of `GITHUB_SHA` from the deploy build. Locally it is `dev`.
 
 ## Stack
 - TypeScript and Next.js 16.4.0 App Router. Documentation: https://nextjs.org/docs/app
@@ -44,7 +44,7 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000 and expect the name AgroClima and the Spanish promise. `GET http://localhost:3000/api/health` returns `{ "ok": true }`.
+Open http://localhost:3000 and expect the name AgroClima and the Spanish promise. `GET http://localhost:3000/api/health` returns `{ "ok": true, "sha": "dev" }`.
 
 Checks:
 
@@ -106,7 +106,7 @@ Browser only. `speechSynthesis` with `lang` `es-SV` (fall back to `es`). A link 
 PRD ref: `prd.md > Escuchar y WhatsApp`.
 
 ### Salud
-`GET /api/health` returns `{ "ok": true }`.
+`GET /api/health` returns `{ "ok": true, "sha": "<short sha>" }`. Locally the sha is `dev`.
 PRD ref: `prd.md > The Core Journey` step 6 of the system trace above.
 
 ## Data Model

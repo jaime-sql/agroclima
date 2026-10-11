@@ -16,7 +16,7 @@ Live URL: https://agroclima.jaime-8a8.workers.dev
 
 ## TC-01 Health route
 Steps: `curl -i https://agroclima.jaime-8a8.workers.dev/api/health`
-Expected: HTTP 200, body `{"ok":true}` (`src/app/api/health/route.ts`).
+Expected: HTTP 200, body `{"ok":true,"sha":"<short sha>"}`. The short sha is the first 7 characters of `GITHUB_SHA`, injected when the deploy workflow builds. A local build uses `"dev"`.
 
 ## TC-02 Spanish-first UI
 Steps: open `/` in a browser.
