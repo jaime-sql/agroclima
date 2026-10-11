@@ -563,7 +563,7 @@ function expectScoredDay(
   if (score !== undefined) assert.equal(day.score, score, `${file} score`);
 }
 
-describe("DR-01 to DR-68 fixtures", () => {
+describe("DR-01 to DR-69 fixtures", () => {
   const scored: Array<[string, RiskLevel | null, string, number?]> = [
     ["dr01_clear_low.json", "bajo", SECO],
     ["dr02_clear_medium.json", "medio", MEDIO],
