@@ -2,8 +2,11 @@ import type { NextConfig } from "next";
 import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
 
 const nextConfig: NextConfig = {
-  cacheComponents: true,
-  partialPrefetching: true,
+  // Cache Components schedule render work with Node's setTimeout `_idleStart`.
+  // workerd does not implement that timer field, so a page request hangs and
+  // the runtime cancels it. This shell does not use Cache Components.
+  cacheComponents: false,
+  partialPrefetching: false,
   turbopack: {
     rules: {
       "*.css": {

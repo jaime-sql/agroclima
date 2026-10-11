@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "build:cloudflare": "opennextjs-cloudflare build",
+    "postinstall": "node scripts/patch-opennext-preview-props.mjs",
+    "build:cloudflare": "node scripts/patch-opennext-preview-props.mjs && opennextjs-cloudflare build",
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
