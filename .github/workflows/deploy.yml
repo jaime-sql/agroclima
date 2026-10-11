@@ -46,9 +46,7 @@ jobs:
           status=$?
           set -e
           printf '%s\n' "$output"
-          if [ "$status" -ne 0 ]; then
-            printf '%s\n' "$output" | grep -qi "already exists"
-          fi
+          AUDIO_CACHE_STATUS="$status" AUDIO_CACHE_OUTPUT="$output" node --experimental-strip-types scripts/prepare-audio-cache.ts wrangler.jsonc
 
       - name: Build and deploy
         if: steps.gate.outputs.skip != 'true'
