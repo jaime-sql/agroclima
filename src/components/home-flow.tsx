@@ -8,6 +8,8 @@ import { agronomistShareText, canShareFiles, whatsAppLink } from "@/lib/share";
 import {
   CONTACTS_PENDING,
   DIAGNOSE_ERROR_COPY,
+  FORECAST_MISSING_COPY,
+  FORECAST_UNAVAILABLE_TITLE,
   GEO_DENIED_COPY,
   OFFLINE_COPY,
   RETRY_LABEL,
@@ -180,6 +182,7 @@ export function HomeFlow() {
     slow,
     placeName: place?.name ?? "",
     risk,
+    riskFailed: riskState === "failed",
   });
 
   return (
@@ -211,6 +214,7 @@ export function HomeFlow() {
           riskState={riskState}
           onRetry={() => void review()}
           onRisk={() => setStep("riesgo")}
+          onRiskRetry={() => void loadRisk(placeId)}
           onShare={() => void share()}
           onRetake={() => setStep("foto")}
         />
@@ -222,6 +226,7 @@ export function HomeFlow() {
             loading={riskState === "loading"}
             failed={riskState === "failed"}
             showPlan={showRiskPlan}
+            onRetry={() => void loadRisk(placeId)}
           />
           {showRiskPlan && planAllowed ? (
             <button type="button" className={primary} onClick={() => setStep("plan")}>
@@ -362,6 +367,7 @@ function ResultStep({
   riskState,
   onRetry,
   onRisk,
+  onRiskRetry,
   onShare,
   onRetake,
 }: {
@@ -373,6 +379,7 @@ function ResultStep({
   riskState: "idle" | "loading" | "failed";
   onRetry: () => void;
   onRisk: () => void;
+  onRiskRetry: () => void;
   onShare: () => void;
   onRetake: () => void;
 }) {
@@ -399,6 +406,7 @@ function ResultStep({
             loading={riskState === "loading"}
             failed={riskState === "failed"}
             showPlan
+            onRetry={onRiskRetry}
           />
           <button type="button" className={secondary} onClick={onShare}>
             Compartir con mi agrónomo
@@ -541,6 +549,7 @@ function spokenText(input: {
   slow: boolean;
   placeName: string;
   risk: RiskView | null;
+  riskFailed: boolean;
 }): string {
   if (input.diagnosing) {
     return input.slow
@@ -550,16 +559,24 @@ function spokenText(input: {
   if (input.step === "foto") {
     return "Tome una foto de una hoja de café. Una sola hoja, de cerca, con buena luz.";
   }
-  if (input.diagnoseError === "offline") return OFFLINE_COPY;
-  if (input.diagnoseError === "unavailable") return DIAGNOSE_ERROR_COPY;
+  const forecastNote = input.riskFailed
+    ? ` ${FORECAST_UNAVAILABLE_TITLE}. ${FORECAST_MISSING_COPY}`
+    : "";
+  if (input.diagnoseError === "offline") return `${OFFLINE_COPY}${forecastNote}`;
+  if (input.diagnoseError === "unavailable") return `${DIAGNOSE_ERROR_COPY}${forecastNote}`;
   if (input.step === "resultado" && input.diagnosis?.ok) {
     return [input.diagnosis.headline, input.diagnosis.detail, input.diagnosis.advice, input.diagnosis.card]
       .filter(Boolean)
-      .join(" ");
+      .join(" ") + forecastNote;
+  }
+  if (input.riskFailed && !input.risk) {
+    return `${FORECAST_UNAVAILABLE_TITLE}. ${FORECAST_MISSING_COPY}`;
   }
   if (input.risk) {
     const days = input.risk.days
-      .map((day) => `${day.date} ${day.level}. ${day.reason}`)
+      .map((day) =>
+        day.level ? `${day.date} ${day.level}. ${day.reason}` : `${day.date} sin datos.`,
+      )
       .join(" ");
     return `Riesgo de roya esta semana en ${input.placeName}. ${days} ${input.risk.footer}`;
   }

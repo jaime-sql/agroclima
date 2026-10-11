@@ -17,12 +17,14 @@ export async function loadPlaceRisk(
   const place = placeById(placeId);
   if (!place) return { ok: false, error: "unknown_place" };
   try {
-    const forecast = await fetchForecast(
+    const loaded = await fetchForecast(
       place.latitude,
       place.longitude,
       fetchImpl,
     );
-    const week = assessForecast(forecast);
+    if (!loaded.ok) return { ok: false, error: "forecast_unavailable" };
+    const week = assessForecast(loaded.forecast);
+    if (!week.available) return { ok: false, error: "forecast_unavailable" };
     return {
       ok: true,
       place: { id: place.id, name: place.name },

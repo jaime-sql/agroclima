@@ -1,4 +1,9 @@
+import { assessForecast } from "../risk/assess.ts";
 import type { OpenMeteoForecast } from "../risk/types";
+
+export type LoadedForecast =
+  | { ok: true; forecast: OpenMeteoForecast }
+  | { ok: false; error: "forecast_unavailable" };
 
 const FORECAST_ENDPOINT = "https://api.open-meteo.com/v1/forecast";
 
@@ -66,24 +71,29 @@ export async function fetchForecast(
   latitude: number,
   longitude: number,
   fetchImpl: typeof fetch = fetch,
-): Promise<OpenMeteoForecast> {
-  const response = await fetchImpl(forecastUrl(latitude, longitude));
-  if (!response.ok) {
-    throw new Error(`Open-Meteo forecast failed (${response.status})`);
+): Promise<LoadedForecast> {
+  try {
+    const response = await fetchImpl(forecastUrl(latitude, longitude));
+    const body = (await response.json().catch(() => null)) as OpenMeteoForecast | null;
+    if (!response.ok || !body || typeof body !== "object") {
+      return { ok: false, error: "forecast_unavailable" };
+    }
+    if (!assessForecast(body).available) {
+      return { ok: false, error: "forecast_unavailable" };
+    }
+    return { ok: true, forecast: body };
+  } catch {
+    return { ok: false, error: "forecast_unavailable" };
   }
-  const body = (await response.json()) as OpenMeteoForecast;
-  return {
-    hourly: body.hourly,
-    daily: body.daily,
-  };
 }
 
 export function fetchDepartmentForecast(
   departmentId: DepartmentId,
-): Promise<OpenMeteoForecast> {
+  fetchImpl?: typeof fetch,
+): Promise<LoadedForecast> {
   const department = DEPARTMENTS.find((item) => item.id === departmentId);
   if (!department) {
-    throw new Error(`Unknown department: ${departmentId}`);
+    return Promise.resolve({ ok: false, error: "forecast_unavailable" });
   }
-  return fetchForecast(department.latitude, department.longitude);
+  return fetchForecast(department.latitude, department.longitude, fetchImpl);
 }

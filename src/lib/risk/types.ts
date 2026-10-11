@@ -19,13 +19,15 @@ export type OpenMeteoDaily = {
 };
 
 export type OpenMeteoForecast = {
-  hourly: OpenMeteoHourly;
-  daily: OpenMeteoDaily;
+  timezone?: string;
+  hourly?: OpenMeteoHourly;
+  daily?: OpenMeteoDaily;
 };
 
 export type DayAssessment = {
   date: string;
-  level: RiskLevel;
+  /** Null when the day has no complete hourly data. The screen shows "sin datos". */
+  level: RiskLevel | null;
   reason: string;
   score: number;
   wetHours: number;
@@ -48,6 +50,8 @@ export type ActionPlan = {
 };
 
 export type WeekAssessment = {
+  /** False for a bad, empty, or wrong-timezone forecast. No day levels. */
+  available: boolean;
   days: DayAssessment[];
   plan: ActionPlan;
   footer: string;

@@ -1,0 +1,7 @@
+{
+ "_http_status": 500,
+ "body": {
+  "error": true,
+  "reason": "Internal Server Error"
+ }
+}

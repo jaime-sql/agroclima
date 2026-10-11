@@ -7,8 +7,16 @@ export const RETRY_LABEL = "Intentar de nuevo";
 export const OFFLINE_COPY =
   'Sin señal. Su foto está guardada en este teléfono. Toque "Intentar de nuevo" cuando tenga señal.';
 
+export const FORECAST_UNAVAILABLE_TITLE = "Pronóstico no disponible";
+
 export const FORECAST_MISSING_COPY =
-  "No hay pronóstico ahora. El resultado de la hoja sigue siendo válido.";
+  "No pudimos obtener el pronóstico. Revise su señal e intente de nuevo.";
+
+export const SIN_DATOS_WORD = "Sin datos";
+
+export const SIN_DATOS_MARK = "–";
+
+export const SIN_DATOS_CARD = "No hay pronóstico completo para este día.";
 
 export const GEO_DENIED_COPY =
   "No pudimos usar su ubicación. Elija su municipio.";

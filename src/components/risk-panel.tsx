@@ -1,7 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { FORECAST_MISSING_COPY } from "@/lib/vision/copy";
+import {
+  FORECAST_MISSING_COPY,
+  FORECAST_UNAVAILABLE_TITLE,
+  RETRY_LABEL,
+  SIN_DATOS_CARD,
+  SIN_DATOS_MARK,
+  SIN_DATOS_WORD,
+} from "@/lib/vision/copy";
 import { formatSprayWindow, formatWeekday, levelMark, levelWord } from "@/lib/format";
 import type { WeekAssessment } from "@/lib/risk/types";
 
@@ -22,11 +29,13 @@ export function RiskPanel({
   loading,
   failed,
   showPlan,
+  onRetry,
 }: {
   risk: RiskView | null;
   loading: boolean;
   failed: boolean;
   showPlan: boolean;
+  onRetry?: () => void;
 }) {
   const [selected, setSelected] = useState(0);
   const days = risk?.days ?? [];
@@ -36,9 +45,11 @@ export function RiskPanel({
     <section className="flex flex-col gap-4" aria-live="polite">
       <div>
         <h2 className="text-2xl font-semibold tracking-tight">Riesgo de roya esta semana</h2>
-        <p className="mt-1">
-          {risk ? `${risk.place.name} · toque un día` : "Toque un día"}
-        </p>
+        {failed && !risk ? null : (
+          <p className="mt-1">
+            {risk ? `${risk.place.name} · toque un día` : "Toque un día"}
+          </p>
+        )}
       </div>
       {loading && !risk ? (
         <div aria-busy="true">
@@ -54,17 +65,49 @@ export function RiskPanel({
           </div>
         </div>
       ) : null}
-      {failed && !risk ? <p>{FORECAST_MISSING_COPY}</p> : null}
+      {failed && !risk ? (
+        <div className="flex flex-col gap-4">
+          <h3 className="text-2xl font-semibold">{FORECAST_UNAVAILABLE_TITLE}</h3>
+          <p>{FORECAST_MISSING_COPY}</p>
+          {onRetry ? (
+            <button
+              type="button"
+              className="min-h-14 w-full rounded-2xl bg-[#1E5B2A] px-4 text-lg font-semibold text-white"
+              onClick={onRetry}
+            >
+              {RETRY_LABEL}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
       {risk && day ? (
         <>
           <div className="grid grid-cols-7 gap-0.5">
             {days.map((item, index) => {
+              const weekday = formatWeekday(item.date);
+              if (item.level === null) {
+                return (
+                  <button
+                    key={item.date}
+                    type="button"
+                    aria-label={`${weekday}, sin datos`}
+                    aria-pressed={index === selected}
+                    className={`flex ${chipSize} flex-col items-center justify-center gap-1 rounded-xl bg-[#E7E5E4] px-0.5 text-center font-bold text-[#1c1917] ${index === selected ? "ring-2 ring-[#1E5B2A]" : ""}`}
+                    onClick={() => setSelected(index)}
+                  >
+                    <span className="text-2xl leading-none" aria-hidden="true">
+                      {SIN_DATOS_MARK}
+                    </span>
+                    <span className="text-[12px] leading-tight">{SIN_DATOS_WORD}</span>
+                  </button>
+                );
+              }
               const word = levelWord(item.level);
               return (
                 <button
                   key={item.date}
                   type="button"
-                  aria-label={`${formatWeekday(item.date)}, riesgo ${word.toLocaleLowerCase("es-SV")}`}
+                  aria-label={`${weekday}, riesgo ${word.toLocaleLowerCase("es-SV")}`}
                   aria-pressed={index === selected}
                   className={`flex ${chipSize} flex-col items-center justify-center gap-1 rounded-xl px-0.5 font-bold ${TONE[item.level]} ${index === selected ? "ring-2 ring-[#1E5B2A]" : ""}`}
                   onClick={() => setSelected(index)}
@@ -79,9 +122,11 @@ export function RiskPanel({
           </div>
           <article className="rounded-2xl bg-white p-4 shadow-sm">
             <h3 className="text-2xl font-semibold">
-              {formatWeekday(day.date)}: {levelWord(day.level)}
+              {day.level === null
+                ? formatWeekday(day.date)
+                : `${formatWeekday(day.date)}: ${levelWord(day.level)}`}
             </h3>
-            <p className="mt-2">{day.reason}</p>
+            <p className="mt-2">{day.level === null ? SIN_DATOS_CARD : day.reason}</p>
           </article>
           <a
             className="flex min-h-12 items-center font-semibold text-[#1E5B2A] underline"
