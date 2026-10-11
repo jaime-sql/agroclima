@@ -1,10 +1,5 @@
-import { readServerEnv } from "@/lib/server-env";
-import { audioBody, synthesizeSpeech, type AudioCache } from "@/lib/tts";
-
-function workerCache(): AudioCache | null {
-  const cachesGlobal = (globalThis as { caches?: { default?: AudioCache } }).caches;
-  return cachesGlobal?.default ?? null;
-}
+import { readAudioBucket, readServerEnv } from "@/lib/server-env";
+import { audioBody, synthesizeSpeech } from "@/lib/tts";
 
 export async function POST(request: Request) {
   let body: unknown;
@@ -24,7 +19,7 @@ export async function POST(request: Request) {
   const result = await synthesizeSpeech({
     text,
     env: { apiKey: env.ELEVENLABS_API_KEY, voiceId: env.ELEVENLABS_VOICE_ID },
-    cache: workerCache(),
+    bucket: readAudioBucket(),
   });
   if (!result.ok) {
     return Response.json(

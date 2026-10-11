@@ -8,9 +8,14 @@ export type TtsEnv = {
   voiceId?: string;
 };
 
-export type AudioCache = {
-  match(request: Request): Promise<Response | undefined>;
-  put(request: Request, response: Response): Promise<void>;
+/** R2-shaped cache. A missing binding is null and listening still plays. */
+export type AudioBucket = {
+  get(key: string): Promise<{ arrayBuffer(): Promise<ArrayBuffer> } | null>;
+  put(
+    key: string,
+    value: ArrayBuffer,
+    options?: { httpMetadata?: { contentType?: string } },
+  ): Promise<unknown>;
 };
 
 export type SpeechResult =
@@ -26,8 +31,8 @@ export async function hashTtsText(text: string): Promise<string> {
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-export function ttsCacheRequest(hash: string): Request {
-  return new Request(`https://agroclima.internal/tts/${hash}`);
+export function audioCacheKey(text: string, voiceId: string): Promise<string> {
+  return hashTtsText(`${text}${voiceId}`);
 }
 
 export function audioBody(bytes: Uint8Array): ArrayBuffer {
@@ -49,7 +54,7 @@ export async function synthesizeSpeech(options: {
   text: string;
   env: TtsEnv;
   fetchImpl?: typeof fetch;
-  cache?: AudioCache | null;
+  bucket?: AudioBucket | null;
 }): Promise<SpeechResult> {
   if (typeof options.text !== "string") return { ok: false, error: "failed" };
   const text = capTtsText(options.text);
@@ -59,8 +64,8 @@ export async function synthesizeSpeech(options: {
   const voiceId = options.env.voiceId?.trim() ?? "";
   if (!apiKey || !voiceId) return { ok: false, error: "unavailable" };
 
-  const cacheKey = ttsCacheRequest(await hashTtsText(text));
-  const cached = await readCachedAudio(options.cache, cacheKey);
+  const key = await audioCacheKey(text, voiceId);
+  const cached = await readCachedAudio(options.bucket, key);
   if (cached) return cached;
 
   const fetchImpl = options.fetchImpl ?? fetch;
@@ -86,18 +91,18 @@ export async function synthesizeSpeech(options: {
 
   const bytes = new Uint8Array(await response.arrayBuffer());
   if (bytes.byteLength === 0) return { ok: false, error: "failed" };
-  await storeCachedAudio(options.cache, cacheKey, bytes);
+  await storeCachedAudio(options.bucket, key, bytes);
   return { ok: true, bytes, contentType: "audio/mpeg", cached: false };
 }
 
 async function readCachedAudio(
-  cache: AudioCache | null | undefined,
-  request: Request,
+  bucket: AudioBucket | null | undefined,
+  key: string,
 ): Promise<SpeechResult | null> {
-  if (!cache) return null;
+  if (!bucket) return null;
   try {
-    const hit = await cache.match(request);
-    if (!hit?.ok) return null;
+    const hit = await bucket.get(key);
+    if (!hit) return null;
     const bytes = new Uint8Array(await hit.arrayBuffer());
     if (bytes.byteLength === 0) return null;
     return { ok: true, bytes, contentType: "audio/mpeg", cached: true };
@@ -107,19 +112,16 @@ async function readCachedAudio(
 }
 
 async function storeCachedAudio(
-  cache: AudioCache | null | undefined,
-  request: Request,
+  bucket: AudioBucket | null | undefined,
+  key: string,
   bytes: Uint8Array,
 ): Promise<void> {
-  if (!cache) return;
+  if (!bucket) return;
   try {
-    await cache.put(
-      request,
-      new Response(audioBody(bytes), {
-        headers: { "Content-Type": "audio/mpeg" },
-      }),
-    );
+    await bucket.put(key, audioBody(bytes), {
+      httpMetadata: { contentType: "audio/mpeg" },
+    });
   } catch {
-    // A cache miss on the next tap is still a valid listen.
+    // A missed write still leaves this tap with audio.
   }
 }

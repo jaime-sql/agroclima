@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState, type RefObject } from "react";
-import { dayCardReason, formatPhotoDate } from "@/lib/format";
+import { dayCardReason, formatPhotoDate, formatSprayWindow } from "@/lib/format";
 import { downscalePhoto } from "@/lib/photo";
 import { DEPARTMENTS, nearestPlace, placeById } from "@/lib/places";
+import { listenScript } from "@/lib/speech";
 import { agronomistSharePayload, canShareFiles, whatsAppLink } from "@/lib/share";
 import {
   CONTACTS_PENDING,
@@ -13,6 +14,7 @@ import {
   GEO_DENIED_COPY,
   RETRY_LABEL,
   RISK_ZONE_NOTE,
+  coffeeZoneLabel,
   riskStripSubtitle,
   showsActionPlan,
 } from "@/lib/vision/copy";
@@ -28,9 +30,6 @@ const primary =
   "min-h-14 w-full rounded-2xl bg-[#1E5B2A] px-4 text-lg font-semibold text-white";
 const secondary =
   "min-h-14 w-full rounded-2xl bg-white px-4 text-lg font-semibold text-[#1E5B2A] ring-2 ring-[#1E5B2A]";
-const listenTall =
-  "min-h-[76px] w-full rounded-2xl bg-white px-4 text-lg font-semibold text-[#1E5B2A] ring-2 ring-[#1E5B2A]";
-
 function shareSummary(
   diagnosis: Diagnosis | null,
   diagnoseError: DiagnoseError | null,
@@ -191,6 +190,7 @@ export function HomeFlow() {
     placeName: place?.name ?? "",
     risk,
     riskFailed: riskState === "failed",
+    planAllowed,
   });
 
   return (
@@ -262,10 +262,12 @@ export function HomeFlow() {
           <h1 className="text-2xl font-semibold">Su plan</h1>
           <RiskPanel risk={risk} loading={false} failed={false} showPlan />
           <AskBox
-            place={risk.place.name}
+            place={coffeeZoneLabel(risk.place.name)}
+            timezone={risk.timezone}
             days={risk.days.slice(0, 7).map((day) => ({
               date: day.date,
               level: day.level,
+              score: day.score,
               wetHours: day.wetHours,
               tmax: day.tmax,
               rain: day.rain,
@@ -276,6 +278,7 @@ export function HomeFlow() {
                 ? { headline: diagnosis.headline, detail: diagnosis.detail }
                 : null
             }
+            onShare={() => void share()}
           />
           <button type="button" className={primary} onClick={() => setStep("compartir")}>
             Escuchar o compartir
@@ -561,7 +564,7 @@ function ShareStep({
         <p className="mt-2">Departamento: {placeName}.</p>
         <p className="mt-2">Es una orientación, no un diagnóstico.</p>
       </article>
-      <ListenButton text={spoken} label="Escuchar en voz alta" className={listenTall} />
+      <ListenButton text={spoken} />
       <button type="button" className={primary} onClick={onShare}>
         Compartir con mi agrónomo
       </button>
@@ -584,6 +587,7 @@ function spokenText(input: {
   placeName: string;
   risk: RiskView | null;
   riskFailed: boolean;
+  planAllowed: boolean;
 }): string {
   if (input.diagnosing) {
     return input.slow
@@ -593,39 +597,51 @@ function spokenText(input: {
   if (input.step === "foto") {
     return "Tome una foto de una hoja de café. Una sola hoja, de cerca, con buena luz.";
   }
-  const forecastNote = input.riskFailed
-    ? ` ${FORECAST_UNAVAILABLE_TITLE}. ${FORECAST_MISSING_COPY}`
-    : "";
-  if (input.diagnoseError) {
-    const status = `${diagnosisStatusCopy(input.diagnoseError)}${forecastNote}`;
-    if (!input.risk) return status;
-    const days = input.risk.days
-      .map((day) =>
-        day.level ? `${day.date} ${day.level}. ${dayCardReason(day)}` : `${day.date} sin datos.`,
-      )
-      .join(" ");
-    return `${status} ${riskStripSubtitle(input.placeName)}. ${RISK_ZONE_NOTE}. ${days}`;
+  const result = resultSpeech(input.diagnosis, input.diagnoseError, input.riskFailed && !input.risk);
+  const plan =
+    input.risk && showsActionPlan(input.diagnoseError, input.planAllowed)
+      ? planSpeech(input.risk)
+      : null;
+  const week = input.risk
+    ? weekSpeech(input.risk, input.placeName)
+    : input.riskFailed
+      ? `${FORECAST_UNAVAILABLE_TITLE}. ${FORECAST_MISSING_COPY}`
+      : null;
+  return listenScript({ result, plan, week }) || "AgroClima";
+}
+
+function resultSpeech(
+  diagnosis: Diagnosis | null,
+  diagnoseError: DiagnoseError | null,
+  forecastMissing: boolean,
+): string | null {
+  if (diagnoseError) {
+    const status = diagnosisStatusCopy(diagnoseError);
+    return forecastMissing
+      ? `${status} ${FORECAST_UNAVAILABLE_TITLE}. ${FORECAST_MISSING_COPY}`
+      : status;
   }
-  if (input.step === "resultado" && input.diagnosis?.ok) {
-    return [input.diagnosis.headline, input.diagnosis.detail, input.diagnosis.advice, input.diagnosis.card]
-      .filter(Boolean)
-      .join(" ") + forecastNote;
-  }
-  if (input.riskFailed && !input.risk) {
-    const diagnosisLine = input.diagnosis?.ok
-      ? `${input.diagnosis.headline}. ${input.diagnosis.detail}`
-      : "";
-    return [diagnosisLine, `${FORECAST_UNAVAILABLE_TITLE}. ${FORECAST_MISSING_COPY}`]
-      .filter(Boolean)
-      .join(" ");
-  }
-  if (input.risk) {
-    const days = input.risk.days
-      .map((day) =>
-        day.level ? `${day.date} ${day.level}. ${dayCardReason(day)}` : `${day.date} sin datos.`,
-      )
-      .join(" ");
-    return `Riesgo de roya esta semana. ${riskStripSubtitle(input.placeName)}. ${RISK_ZONE_NOTE}. ${days} ${input.risk.footer}`;
-  }
-  return "AgroClima";
+  if (!diagnosis?.ok) return null;
+  const text = [diagnosis.headline, diagnosis.detail, diagnosis.advice, diagnosis.card]
+    .filter(Boolean)
+    .join(" ");
+  return text || null;
+}
+
+function planSpeech(risk: RiskView): string {
+  return [
+    `Qué. Clase de fungicida: ${risk.plan.fungicideClasses.join(", ")}.`,
+    `Cuánto. ${risk.plan.doseNote}.`,
+    `Cuándo. Próximo día seco para fumigar. ${formatSprayWindow(risk.plan.nextDryWindow)}.`,
+    "Use guantes y mascarilla. Lea la etiqueta.",
+  ].join(" ");
+}
+
+function weekSpeech(risk: RiskView, placeName: string): string {
+  const days = risk.days
+    .map((day) =>
+      day.level ? `${day.date} ${day.level}. ${dayCardReason(day)}` : `${day.date} sin datos.`,
+    )
+    .join(" ");
+  return `${riskStripSubtitle(placeName)}. ${RISK_ZONE_NOTE}. ${days}`;
 }

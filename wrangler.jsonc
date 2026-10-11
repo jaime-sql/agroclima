@@ -14,6 +14,12 @@
       "service": "agroclima"
     }
   ],
+  "r2_buckets": [
+    {
+      "binding": "AUDIO_CACHE",
+      "bucket_name": "agroclima-audio"
+    }
+  ],
   "observability": {
     "enabled": true,
     "logs": {

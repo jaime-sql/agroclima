@@ -6,8 +6,9 @@ Usuario: caficultor pequeño (1–5 manzanas) en Santa Ana / Ahuachapán / Chala
 Mockups (390×844): `01_foto.png`, `02a_resultado_roya.png`, `02a2_resultado_roya_probable.png`, `02b_resultado_sana.png`, `02c_resultado_otro.png`, `02d_resultado_repetir.png`, `02e_resultado_no_seguro.png`, `03_riesgo.png`, `04_plan.png`, `05_escuchar_compartir.png`. Flujo completo: `agroclima_flow_combined.png`.
 
 ## Siempre visible (abajo, en todas las pantallas)
-- Botón «♪ Escuchar esta pantalla»: lee en voz alta el título y el texto principal de la pantalla. Alto 56 px, ancho completo. Solo se llama al servidor al tocarlo.
-- Si hay clave de voz, esa lectura usa el audio del servidor. Si no hay clave, si el audio falla, o si el teléfono no puede reproducirlo, se usa la voz del teléfono (Web Speech API), en este orden: es-US, luego es-MX, luego es-ES. Si tampoco hay esa voz, el texto queda en pantalla y aparece «No pudimos leer en voz alta.»
+- Botón «▶ Escuchar»: ancho completo, alto 56 px. Solo se llama al servidor al tocarlo. Mientras prepara el audio: «Preparando audio…» y un giro. Mientras suena: «❚❚ Pausar» y una barra delgada. Al terminar: «▶ Escuchar otra vez».
+- El orden de lectura es el resultado, luego el plan, luego el riesgo de la semana, y al final «Es una orientación, no un diagnóstico.»
+- Si no hay clave, si el audio falla, o si el teléfono no puede reproducirlo, se usa la voz del teléfono (es-US, luego es-MX, luego es-ES). Si tampoco hay esa voz, aparece «No pudimos leer en voz alta.»
 
 ## 1/5 Foto
 - Título: «Tome una foto de una hoja de café.»
@@ -64,13 +65,13 @@ El % se muestra pequeño junto a la palabra.
 - Tarjetas: **Qué** · **Cuánto** · **Cuándo** (el contenido viene de las reglas citadas; los mockups usan texto de ejemplo)
 - Tarjeta verde: «Próximo día seco para fumigar» con «☀ <día>, en la mañana»
 - «Use guantes y mascarilla. Lea la etiqueta.»
-- Bajo el plan: «Pregúntele a AgroClima», un cuadro de texto y el botón «Preguntar». La respuesta usa solo lo que ya está en esta pantalla.
+- Bajo el plan, cerrado al inicio: «¿Tiene una pregunta?». Chips «¿Por qué el jueves es Alto?», «¿Qué significa Probable?», «¿Cuándo fumigar?». Campo con «Escriba su pregunta». El micrófono solo si el teléfono tiene SpeechRecognition. Cada respuesta trae un ▶ chico y «Basado en el pronóstico y la foto de esta pantalla». Si no puede responder: «No puedo responder eso con seguridad. Consulte con su agrónomo.» y debajo «Compartir con mi agrónomo». Si hay muchas preguntas: «Ha hecho muchas preguntas seguidas. Intente en unos minutos.»
 - Botón: «Escuchar o compartir»
 - Solo aparece después de los resultados a) Roya o b) Sana (para b, un plan preventivo).
 
 ## 5/5 Escuchar / Compartir
 - «Su resumen» y una tarjeta con 3–4 frases cortas
-- «Escuchar en voz alta» (botón de 76 px). Sin audio del servidor, usa la voz del teléfono. Si no hay ninguna, «No pudimos leer en voz alta.»
+- «▶ Escuchar» (botón de 56 px, ancho completo). Sin audio del servidor, usa la voz del teléfono. Si no hay ninguna, «No pudimos leer en voz alta.»
 - «Compartir por WhatsApp» (`https://wa.me/?text=` con el resumen, la advertencia y el enlace)
 - «Empezar de nuevo»
 
@@ -87,7 +88,7 @@ El % se muestra pequeño junto a la palabra.
 - Contraste WCAG AA: blanco sobre #1E5B2A, #8A1C14 sobre #FDE2E1, #6B4B00 sobre #FFF1C2 y #1E5B2A sobre #DDF2E0 (todos ≥ 4.5:1).
 - Íconos siempre acompañados de una palabra. Frases cortas, en «usted».
 - Etiquetas `aria-label` en las fichas («Lunes, riesgo alto»). El veredicto se anuncia con `aria-live`.
-- TTS: al tocar Escuchar, audio del servidor si hay clave; si no, voz del teléfono (es-US → es-MX → es-ES). Si ambas fallan, «No pudimos leer en voz alta.» El botón sigue visible.
+- TTS: al tocar «▶ Escuchar», audio del servidor si hay clave; si no, voz del teléfono (es-US → es-MX → es-ES). Si ambas fallan, «No pudimos leer en voz alta.» El botón sigue visible.
 
 ## Risk strip — missing data states (added Oct 11)
 - **Sin datos (per day):** grey chip, "–" icon, word "Sin datos" (never color alone). Day card: "No hay pronóstico completo para este día." Never shows a level.

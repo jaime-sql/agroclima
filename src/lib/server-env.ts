@@ -1,4 +1,5 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
+import type { AudioBucket } from "./tts.ts";
 
 const NAMES = [
   "OPENAI_API_KEY",
@@ -28,4 +29,16 @@ export function readServerEnv(): ServerEnv {
     out[name] = value;
   }
   return out;
+}
+
+export function readAudioBucket(): AudioBucket | null {
+  try {
+    const bucket = (getCloudflareContext().env as { AUDIO_CACHE?: AudioBucket }).AUDIO_CACHE;
+    if (!bucket || typeof bucket.get !== "function" || typeof bucket.put !== "function") {
+      return null;
+    }
+    return bucket;
+  } catch {
+    return null;
+  }
 }

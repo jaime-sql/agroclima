@@ -39,7 +39,7 @@ export async function POST(request: Request) {
     headers.set(name, value);
   }
   return Response.json(
-    { ok: result.ok, error: result.error, answer: result.answer },
+    { ok: result.ok, error: result.error, answer: result.answer, refused: result.refused },
     { status: result.status, headers },
   );
 }

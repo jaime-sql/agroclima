@@ -4,24 +4,28 @@ import {
   LISTEN_FAILED,
   TTS_MAX_CHARS,
   TTS_MODEL,
+  audioCacheKey,
   capTtsText,
-  hashTtsText,
   listenFallback,
   synthesizeSpeech,
-  type AudioCache,
+  type AudioBucket,
 } from "./tts.ts";
 
-function memoryCache(): AudioCache & { puts: number } {
-  const store = new Map<string, Response>();
+function memoryBucket(): AudioBucket & { puts: number; keys: string[] } {
+  const store = new Map<string, ArrayBuffer>();
   return {
     puts: 0,
-    async match(request) {
-      const hit = store.get(request.url);
-      return hit ? hit.clone() : undefined;
+    keys: [],
+    async get(key) {
+      const hit = store.get(key);
+      if (!hit) return null;
+      const copy = hit.slice(0);
+      return { async arrayBuffer() { return copy; } };
     },
-    async put(request, response) {
+    async put(key, value) {
       this.puts += 1;
-      store.set(request.url, response.clone());
+      this.keys.push(key);
+      store.set(key, value.slice(0));
     },
   };
 }
@@ -54,7 +58,7 @@ describe("text to speech", () => {
     const capped = capTtsText(text);
     assert.equal([...capped].length, TTS_MAX_CHARS);
     assert.equal(capped.endsWith("extra"), false);
-    const cache = memoryCache();
+    const bucket = memoryBucket();
     let calls = 0;
     let sent = "";
     const fetchImpl: typeof fetch = async (input, init) => {
@@ -75,29 +79,35 @@ describe("text to speech", () => {
       text,
       env: { apiKey: "secret", voiceId: "voice-1" },
       fetchImpl,
-      cache,
+      bucket,
     });
     const second = await synthesizeSpeech({
       text,
       env: { apiKey: "secret", voiceId: "voice-1" },
       fetchImpl,
-      cache,
+      bucket,
+    });
+    const skipped = await synthesizeSpeech({
+      text,
+      env: { apiKey: "secret", voiceId: "voice-1" },
+      fetchImpl,
+      bucket: null,
     });
     assert.equal(sent, capped);
-    assert.equal(calls, 1);
-    assert.equal(cache.puts, 1);
+    assert.equal(calls, 2);
+    assert.equal(bucket.puts, 1);
+    assert.deepEqual(bucket.keys, [await audioCacheKey(capped, "voice-1")]);
+    assert.notEqual(bucket.keys[0], await audioCacheKey(capped, "other-voice"));
     assert.equal(first.ok && first.cached, false);
     assert.equal(second.ok && second.cached, true);
+    assert.equal(skipped.ok && skipped.cached, false);
     if (first.ok && second.ok) {
       assert.deepEqual(second.bytes, first.bytes);
     }
-    const hash = await hashTtsText(capped);
-    assert.equal(hash, await hashTtsText(capped));
-    assert.notEqual(hash, await hashTtsText(`${capped}x`));
   });
 
   it("does not cache a vendor error, and falls back when there is no server audio", async () => {
-    const cache = memoryCache();
+    const bucket = memoryBucket();
     let calls = 0;
     const fetchImpl: typeof fetch = async () => {
       calls += 1;
@@ -107,17 +117,17 @@ describe("text to speech", () => {
       text: "Riesgo alto.",
       env: { apiKey: "secret", voiceId: "voice-1" },
       fetchImpl,
-      cache,
+      bucket,
     });
     await synthesizeSpeech({
       text: "Riesgo alto.",
       env: { apiKey: "secret", voiceId: "voice-1" },
       fetchImpl,
-      cache,
+      bucket,
     });
     assert.deepEqual(failed, { ok: false, error: "failed" });
     assert.equal(calls, 2);
-    assert.equal(cache.puts, 0);
+    assert.equal(bucket.puts, 0);
     assert.equal(listenFallback({ serverAudio: false, hasSpanishVoice: true }), "browser");
     assert.equal(listenFallback({ serverAudio: true, hasSpanishVoice: false }), "server");
     assert.equal(listenFallback({ serverAudio: false, hasSpanishVoice: false }), "failed");

@@ -31,13 +31,31 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Install, build, and deploy
+      - name: Install
+        if: steps.gate.outputs.skip != 'true'
+        run: npm ci
+
+      - name: Create audio bucket if missing
+        if: steps.gate.outputs.skip != 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set +e
+          output=$(npx wrangler r2 bucket create agroclima-audio --update-config false 2>&1)
+          status=$?
+          set -e
+          printf '%s\n' "$output"
+          if [ "$status" -ne 0 ]; then
+            printf '%s\n' "$output" | grep -qi "already exists"
+          fi
+
+      - name: Build and deploy
         if: steps.gate.outputs.skip != 'true'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           GITHUB_SHA: ${{ github.sha }}
         run: |
-          npm ci
           npm run build:cloudflare
           npx wrangler deploy --no-autoconfig

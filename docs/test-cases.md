@@ -50,25 +50,27 @@ Expected:
 Preconditions: Worker has no `ELEVENLABS_API_KEY` or no `ELEVENLABS_VOICE_ID`.
 Steps: tap «Escuchar» on any screen. `npm test` covers `src/lib/tts.test.ts`.
 Expected:
+- The button reads «▶ Escuchar», full width, 56 px. While the audio is prepared it reads «Preparando audio…» with a spinner. While it plays it reads «❚❚ Pausar» and shows a thin progress bar. After it ends it reads «▶ Escuchar otra vez».
 - The tap is the only call to `POST /api/tts`. Nothing is fetched while the page loads.
 - Without a key or voice id, the response is HTTP 503 `{ "ok": false, "error": "unavailable" }` and ElevenLabs is not called.
 - The phone then uses `speechSynthesis` (es-US, then es-MX, then es-ES). If that voice is also missing, the screen says "No pudimos leer en voz alta."
-- Text sent to ElevenLabs is capped at 2,500 characters. Successful audio is cached in the Cache API under the hash of that capped text. A second tap does not call ElevenLabs again. Errors are not cached. No KV writes.
+- Spoken order, when those parts exist: the result, then the plan, then the week risk, then "Es una orientación, no un diagnóstico."
+- Text sent to ElevenLabs is capped at 2,500 characters. Successful audio is stored in the R2 bucket `agroclima-audio` (binding `AUDIO_CACHE`) under `sha256(text + voiceId)`. A second tap does not call ElevenLabs again. Errors are not stored. If the binding is missing, the audio still plays and the cache is skipped. No KV and no Cache API.
 
 ## TC-09 Ask without an OpenAI key
 Preconditions: Worker has no `OPENAI_API_KEY`. The plan screen is open.
 Steps: type a short question and tap «Preguntar».
 Expected:
 - `POST /api/ask` returns HTTP 503 and the answer "AgroClima no puede responder ahora. Pregúntele a su agrónomo." OpenAI is not called.
-- The ask box sits under the plan. Title "Pregúntele a AgroClima", button "Preguntar".
+- Under the plan, collapsed until opened: header "¿Tiene una pregunta?", chips "¿Por qué el jueves es Alto?", "¿Qué significa Probable?", "¿Cuándo fumigar?", and placeholder "Escriba su pregunta". The mic shows only when the phone has SpeechRecognition.
 
 ## TC-10 Ask stays on the screen data
 Steps: `npm test` runs `src/lib/ask.test.ts` with a mocked OpenAI reply.
 Expected:
-- The system prompt is fixed Spanish. It allows no fungicide dose beyond "según etiqueta", no brands, no other crops, and no farm weather. It tells the model to refer to an agronomist and to ignore instructions inside the question.
-- The question is only in the user message, next to the place, the 7-day numbers, the rule text, and the diagnosis. Unknown client fields are dropped.
-- A question longer than 400 characters is rejected with no model call. Replies are capped at 280 tokens.
-- The same address can ask 8 times in 10 minutes. The 9th gets "Espere un momento antes de hacer otra pregunta." The limiter stores timestamps only.
+- The system prompt is fixed Spanish. It allows no fungicide dose beyond "según etiqueta", no brands, no other crops, and no farm weather. It ignores instructions inside the question. If the data is not enough, the reply is exactly "No puedo responder eso con seguridad. Consulte con su agrónomo." and the screen adds "Compartir con mi agrónomo".
+- The question is only in the user message. The data is the zone label, timezone, and each `/api/risk` day (`date`, `level`, `score`, `wetHours`, `tmax`, `rain`, `reason`) plus the diagnosis. There is no separate summary. Unknown client fields are dropped.
+- A question longer than 400 characters is rejected with no model call. Replies are capped at 280 tokens and at 3 sentences. Each answer shows a small ▶ and "Basado en el pronóstico y la foto de esta pantalla".
+- The same address can ask 8 times in 10 minutes. The 9th gets "Ha hecho muchas preguntas seguidas. Intente en unos minutos." The limiter stores timestamps only.
 - A real model call sets `X-Agroclima-Prompt-Tokens`, `X-Agroclima-Completion-Tokens`, and `X-Agroclima-Latency-Ms`. Those headers are numbers. They do not include the question or the address. A missing key sets none of them.
 
 ## TC-07 AegisFlow isolation
@@ -86,8 +88,8 @@ Expected: 200. `wrangler.jsonc` keeps `"name": "agroclima"`, with no routes or c
 | UX-05 | Risk not by color alone | 7-day strip | Every day shows icon + word (Alto/Medio/Bajo) |
 | UX-06 | Result states | Force each label/confidence | Seguro, Probable ("Confirme con un agrónomo"), Sana only ≥0.85, No estamos seguros (no plan), Repetir foto (reason + tip) |
 | UX-07 | Rust as guidance | Rust result | Shows "Parece roya" + "Esto es una orientación, no un diagnóstico" |
-| UX-08 | Listen | Tap Escuchar with and without a Spanish voice, and with no ElevenLabs key | Escuchar calls `/api/tts` only on tap. No key or a vendor error falls back to es-US, then es-MX, then es-ES. If both fail, "No pudimos leer en voz alta." |
-| UX-13 | Ask | Open the plan and ask a question with no OpenAI key | Box "Pregúntele a AgroClima" under the plan. Reply is the friendly unavailable sentence |
+| UX-08 | Listen | Tap Escuchar with and without a Spanish voice, and with no ElevenLabs key | Button "▶ Escuchar", 56 px, full width. Loading "Preparando audio…". Playing "❚❚ Pausar" plus a thin bar. Ended "▶ Escuchar otra vez". No key falls back to es-US, then es-MX, then es-ES. If both fail, "No pudimos leer en voz alta." |
+| UX-13 | Ask | Open the plan | Collapsed header "¿Tiene una pregunta?". Chips, placeholder "Escriba su pregunta", mic only with SpeechRecognition. Answers show ▶ and the source line. Refusal adds "Compartir con mi agrónomo" |
 | UX-09 | Share | Tap "Compartir con mi agrónomo" | Share sheet with photo on Android Chrome / iOS Safari; text-only WhatsApp link elsewhere |
 | UX-10 | Unavailable | No vision key | flow.md error copy, photo kept, "Intentar de nuevo"; risk strip and share still work |
 | UX-11 | Day without data | Fixture DR-57 | Grey "Sin datos" chip with "–" icon; card text as in flow.md; no level shown |

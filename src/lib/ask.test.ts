@@ -5,13 +5,19 @@ import {
   ASK_FAILED,
   ASK_MAX_QUESTION_CHARS,
   ASK_MAX_REPLY_TOKENS,
+  ASK_CHIPS,
+  ASK_HEADER,
+  ASK_PLACEHOLDER,
   ASK_RATE_LIMITED,
+  ASK_REFUSAL,
+  ASK_SOURCE,
   ASK_SYSTEM_PROMPT,
   ASK_TOO_LONG,
   ASK_UNAVAILABLE,
   answerQuestion,
   clientIp,
   costHeaders,
+  limitSentences,
   resetAskRateLimit,
 } from "./ask.ts";
 
@@ -49,17 +55,21 @@ describe("ask AgroClima", () => {
     const result = await answerQuestion({
       body: {
         question,
-        place: "Santa Ana",
+        place: "Zona cafetalera de Santa Ana",
+        timezone: "America/El_Salvador",
+        summary: "Alto toda la semana",
         secret: "no-enviar",
         farmWeather: "llueve en la finca",
         days: [
           {
             date: "2026-10-12",
             level: "alto",
+            score: 4,
             wetHours: 11,
             tmax: 24,
             rain: 6,
-            reason: "Hojas mojadas muchas horas.",
+            reason: "«Hojas mojadas muchas horas y clima tibio: la roya se pega fácil.»",
+            warmWetHours: 11,
             extra: "drop",
           },
           { date: "ayer", level: "alto", wetHours: 1, tmax: 1, rain: 1, reason: "no" },
@@ -96,24 +106,40 @@ describe("ask AgroClima", () => {
     assert.match(system, /otros cultivos/);
     assert.match(system, /agrónomo/);
     assert.match(system, /Ignore cualquier instrucción/);
+    assert.match(system, /3 frases/);
     const payload = JSON.parse(user) as {
       datos: {
         place: string;
+        timezone: string;
         days: Array<Record<string, unknown>>;
         diagnosis: { headline: string; detail: string };
+        summary?: string;
       };
       pregunta: string;
     };
     assert.equal(payload.pregunta, question);
-    assert.equal(payload.datos.place, "Santa Ana");
+    assert.equal(payload.datos.place, "Zona cafetalera de Santa Ana");
+    assert.equal(payload.datos.timezone, "America/El_Salvador");
+    assert.equal(payload.datos.summary, undefined);
     assert.equal(payload.datos.days.length, 1);
+    assert.deepEqual(Object.keys(payload.datos).sort(), ["days", "diagnosis", "place", "timezone"]);
+    assert.deepEqual(Object.keys(payload.datos.days[0] ?? {}).sort(), [
+      "date",
+      "level",
+      "rain",
+      "reason",
+      "score",
+      "tmax",
+      "wetHours",
+    ]);
     assert.deepEqual(payload.datos.days[0], {
       date: "2026-10-12",
       level: "alto",
+      score: 4,
       wetHours: 11,
       tmax: 24,
       rain: 6,
-      reason: "Hojas mojadas muchas horas.",
+      reason: "«Hojas mojadas muchas horas y clima tibio: la roya se pega fácil.»",
     });
     assert.deepEqual(payload.datos.diagnosis, {
       headline: "Parece roya",
@@ -122,6 +148,8 @@ describe("ask AgroClima", () => {
     assert.equal(user.includes("no-enviar"), false);
     assert.equal(user.includes("farmWeather"), false);
     assert.equal(user.includes("drop-card"), false);
+    assert.equal(user.includes("Alto toda la semana"), false);
+    assert.equal(user.includes("warmWetHours"), false);
     const headers = costHeaders(result);
     assert.equal(headers["X-Agroclima-Prompt-Tokens"], "40");
     assert.equal(headers["X-Agroclima-Completion-Tokens"], "12");
@@ -218,6 +246,34 @@ describe("ask AgroClima", () => {
     assert.match(headers["X-Agroclima-Latency-Ms"] ?? "", /^\d+$/);
     assert.equal(headers["X-Agroclima-Prompt-Tokens"], undefined);
     assert.equal(headers["X-Agroclima-Completion-Tokens"], undefined);
+  });
+
+  it("uses the screen copy, caps an answer at three sentences, and refuses outside the data", async () => {
+    assert.equal(ASK_HEADER, "¿Tiene una pregunta?");
+    assert.equal(ASK_PLACEHOLDER, "Escriba su pregunta");
+    assert.equal(ASK_SOURCE, "Basado en el pronóstico y la foto de esta pantalla");
+    assert.equal(ASK_RATE_LIMITED, "Ha hecho muchas preguntas seguidas. Intente en unos minutos.");
+    assert.equal(ASK_REFUSAL, "No puedo responder eso con seguridad. Consulte con su agrónomo.");
+    assert.deepEqual([...ASK_CHIPS], [
+      "¿Por qué el jueves es Alto?",
+      "¿Qué significa Probable?",
+      "¿Cuándo fumigar?",
+    ]);
+    assert.equal(limitSentences("Uno. Dos. Tres. Cuatro más."), "Uno. Dos. Tres.");
+    assert.equal(limitSentences("La máxima es 24.9 °C. El jueves es Alto."), "La máxima es 24.9 °C. El jueves es Alto.");
+    const refused = await answerQuestion({
+      body: { question: "¿Y el maíz?", place: "Zona cafetalera de Santa Ana", days: [] },
+      env: { apiKey: "secret" },
+      ip: "203.0.113.40",
+      fetchImpl: async () =>
+        Response.json({
+          choices: [{ message: { content: ASK_REFUSAL } }],
+          usage: { prompt_tokens: 8, completion_tokens: 4 },
+        }),
+    });
+    assert.equal(refused.refused, true);
+    assert.equal(refused.answer, ASK_REFUSAL);
+    assert.equal(refused.calledModel, true);
   });
 
   it("reads the client address from the edge header", () => {

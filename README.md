@@ -29,6 +29,14 @@ npm run build:cloudflare
 
 A live Worker needs `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`, then `npx wrangler deploy --no-autoconfig`. The flag keeps the OpenNext config. The deploy workflow skips with a message when those GitHub Actions secrets are missing. Planning notes are in `devpost/`.
 
+Escuchar stores audio in the R2 bucket `agroclima-audio` (binding `AUDIO_CACHE` in `wrangler.jsonc`). The object key is the SHA-256 of the capped text plus the voice id. Create the bucket once before a deploy that should cache audio:
+
+```bash
+npx wrangler r2 bucket create agroclima-audio
+```
+
+The deploy workflow runs that create and continues when the bucket already exists. If the binding is missing, Escuchar still plays and skips the cache.
+
 ## Known limitations
 
 The place points are representative coffee zones (ISC origin zones Apaneca-Ilamatepec and Alotepec), not the user's farm. At 1,200-1,450 m, December, March, and April often score high under the Avelino 2015 temperature rule, not yet validated by an agronomist.
