@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { nearestPlace, placeById } from "./places.ts";
+import { DEPARTMENTS, nearestPlace, PLACE_COORDINATES, placeById } from "./places.ts";
 
 describe("preset places", () => {
   it("resolves the three ids and rejects anything else", () => {
@@ -8,6 +8,15 @@ describe("preset places", () => {
     assert.equal(placeById("ahuachapan")?.name, "Ahuachapán");
     assert.equal(placeById("chalatenango")?.name, "Chalatenango");
     assert.equal(placeById("san-salvador"), null);
+  });
+
+  it("reads each seat from the single coordinate config", () => {
+    for (const place of DEPARTMENTS) {
+      assert.deepEqual(
+        { latitude: place.latitude, longitude: place.longitude },
+        PLACE_COORDINATES[place.id],
+      );
+    }
   });
 
   it("picks the nearest preset seat from a coordinate", () => {

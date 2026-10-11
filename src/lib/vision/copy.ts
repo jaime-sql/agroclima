@@ -27,6 +27,13 @@ export const SIN_DATOS_MARK = "–";
 
 export const SIN_DATOS_CARD = "No hay pronóstico completo para este día.";
 
+export function riskStripSubtitle(placeName: string): string {
+  return `Zona cafetalera de ${placeName} · toque un día`;
+}
+
+export const RISK_ZONE_NOTE =
+  "Clima de una zona cafetalera cercana, no de su finca";
+
 export const GEO_DENIED_COPY =
   "No pudimos usar su ubicación. Elija su municipio.";
 

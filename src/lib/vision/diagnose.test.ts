@@ -8,10 +8,13 @@ import {
   FORECAST_UNAVAILABLE_TITLE,
   OFFLINE_COPY,
   RETRY_LABEL,
+  RISK_ZONE_NOTE,
   SIN_DATOS_CARD,
   SIN_DATOS_MARK,
   SIN_DATOS_WORD,
+  riskStripSubtitle,
 } from "./copy.ts";
+import { DEPARTMENTS } from "../places.ts";
 import { diagnoseImage, interpretDiagnosis, parseModelPayload } from "./diagnose.ts";
 
 describe("diagnosis", () => {
@@ -43,6 +46,26 @@ describe("diagnosis", () => {
       FORECAST_MISSING_COPY,
       "No pudimos obtener el pronóstico. Revise su señal e intente de nuevo.",
     );
+  });
+
+  it("names the nearby coffee zone and keeps the three picker labels", () => {
+    assert.deepEqual(
+      DEPARTMENTS.map((place) => place.name),
+      ["Santa Ana", "Ahuachapán", "Chalatenango"],
+    );
+    assert.equal(
+      riskStripSubtitle("Santa Ana"),
+      "Zona cafetalera de Santa Ana · toque un día",
+    );
+    assert.equal(
+      riskStripSubtitle("Ahuachapán"),
+      "Zona cafetalera de Ahuachapán · toque un día",
+    );
+    assert.equal(
+      riskStripSubtitle("Chalatenango"),
+      "Zona cafetalera de Chalatenango · toque un día",
+    );
+    assert.equal(RISK_ZONE_NOTE, "Clima de una zona cafetalera cercana, no de su finca");
   });
 
   it("lets a retake win, and keeps a healthy leaf unsure below 0.85", () => {

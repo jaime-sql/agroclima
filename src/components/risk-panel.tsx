@@ -5,9 +5,11 @@ import {
   FORECAST_MISSING_COPY,
   FORECAST_UNAVAILABLE_TITLE,
   RETRY_LABEL,
+  RISK_ZONE_NOTE,
   SIN_DATOS_CARD,
   SIN_DATOS_MARK,
   SIN_DATOS_WORD,
+  riskStripSubtitle,
 } from "@/lib/vision/copy";
 import { formatChipDate, formatSprayWindow, formatWeekday, levelMark, levelWord } from "@/lib/format";
 import type { WeekAssessment } from "@/lib/risk/types";
@@ -47,7 +49,7 @@ export function RiskPanel({
         <h2 className="text-2xl font-semibold tracking-tight">Riesgo de roya esta semana</h2>
         {failed && !risk ? null : (
           <p className="mt-1">
-            {risk ? `${risk.place.name} · toque un día` : "Toque un día"}
+            {risk ? riskStripSubtitle(risk.place.name) : "Toque un día"}
           </p>
         )}
       </div>
@@ -123,6 +125,7 @@ export function RiskPanel({
               );
             })}
           </div>
+          <p>{RISK_ZONE_NOTE}</p>
           <article className="rounded-2xl bg-white p-4 shadow-sm">
             <h3 className="text-2xl font-semibold">
               {day.level === null

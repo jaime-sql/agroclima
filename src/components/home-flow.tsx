@@ -12,6 +12,8 @@ import {
   FORECAST_UNAVAILABLE_TITLE,
   GEO_DENIED_COPY,
   RETRY_LABEL,
+  RISK_ZONE_NOTE,
+  riskStripSubtitle,
 } from "@/lib/vision/copy";
 import type { Diagnosis } from "@/lib/vision/diagnose";
 import { ListenButton } from "./listen-button";
@@ -593,7 +595,7 @@ function spokenText(input: {
         day.level ? `${day.date} ${day.level}. ${day.reason}` : `${day.date} sin datos.`,
       )
       .join(" ");
-    return `Riesgo de roya esta semana en ${input.placeName}. ${days} ${input.risk.footer}`;
+    return `Riesgo de roya esta semana. ${riskStripSubtitle(input.placeName)}. ${RISK_ZONE_NOTE}. ${days} ${input.risk.footer}`;
   }
   return "AgroClima";
 }
