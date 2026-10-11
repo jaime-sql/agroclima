@@ -75,14 +75,13 @@ export function formatWeekdayToken(isoDate: string): string {
   return weekday.toLocaleLowerCase("es-SV");
 }
 
-/** "11 h de hoja mojada · máx. 24 °C · lluvia 6 mm". A missing figure is "sin dato", never 0. */
+/** "11 h húmedas · máx. 24 °C · lluvia 6 mm". A missing figure is "sin dato", never 0. */
 export function dayFiguresLine(day: {
   wetHours: number | null;
   tmax: number | null;
   rain: number | null;
 }): string {
-  const hours =
-    day.wetHours === null ? "hoja mojada: sin dato" : `${day.wetHours} h de hoja mojada`;
+  const hours = day.wetHours === null ? "h húmedas: sin dato" : `${day.wetHours} h húmedas`;
   const max = day.tmax === null ? "máx.: sin dato" : `máx. ${formatMeasure(day.tmax)} °C`;
   const rain = day.rain === null ? "lluvia: sin dato" : `lluvia ${formatMeasure(day.rain)} mm`;
   return `${hours} · ${max} · ${rain}`;

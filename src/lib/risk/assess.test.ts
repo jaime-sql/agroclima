@@ -729,7 +729,7 @@ describe("DR-01 to DR-71 fixtures", () => {
     assert.equal(day.level, "medio");
     assert.equal(
       dayCardReason(day),
-      "11 h de hoja mojada · máx. 24 °C · lluvia 6 mm. «Humedad o lluvia algunas horas: riesgo moderado.»",
+      "11 h húmedas · máx. 24 °C · lluvia 6 mm. «Humedad o lluvia algunas horas: riesgo moderado.»",
     );
   });
 
@@ -752,7 +752,7 @@ describe("DR-01 to DR-71 fixtures", () => {
         rain: null,
         reason: "«Día seco: la roya casi no avanza.»",
       }),
-      "0 h de hoja mojada · máx. 24 °C · lluvia: sin dato. «Día seco: la roya casi no avanza.»",
+      "0 h húmedas · máx. 24 °C · lluvia: sin dato. «Día seco: la roya casi no avanza.»",
     );
     assert.equal(
       dayCardReason({

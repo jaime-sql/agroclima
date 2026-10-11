@@ -18,7 +18,7 @@ describe("day card reason", () => {
   it("uses the leaf-wetness line, then the rule sentence", () => {
     assert.equal(
       dayFiguresLine({ wetHours: 11, tmax: 24, rain: 6 }),
-      "11 h de hoja mojada · máx. 24 °C · lluvia 6 mm",
+      "11 h húmedas · máx. 24 °C · lluvia 6 mm",
     );
     assert.equal(
       dayCardReason({
@@ -28,17 +28,17 @@ describe("day card reason", () => {
         rain: 6,
         reason: "«Hojas mojadas muchas horas y clima tibio: la roya se pega fácil.»",
       }),
-      "11 h de hoja mojada · máx. 24 °C · lluvia 6 mm. «Hojas mojadas muchas horas y clima tibio: la roya se pega fácil.»",
+      "11 h húmedas · máx. 24 °C · lluvia 6 mm. «Hojas mojadas muchas horas y clima tibio: la roya se pega fácil.»",
     );
   });
 
   it("says sin dato for a missing figure and keeps a real zero", () => {
     const missingRain = dayFiguresLine({ wetHours: 11, tmax: 24, rain: null });
-    assert.equal(missingRain, "11 h de hoja mojada · máx. 24 °C · lluvia: sin dato");
+    assert.equal(missingRain, "11 h húmedas · máx. 24 °C · lluvia: sin dato");
     assert.equal(missingRain.includes("lluvia 0"), false);
     assert.equal(
       dayFiguresLine({ wetHours: null, tmax: null, rain: 0 }),
-      "hoja mojada: sin dato · máx.: sin dato · lluvia 0 mm",
+      "h húmedas: sin dato · máx.: sin dato · lluvia 0 mm",
     );
     const noHours = dayCardReason({
       level: null,
