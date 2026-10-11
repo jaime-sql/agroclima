@@ -2,10 +2,19 @@
 
 export const DIAGNOSE_ERROR_COPY = "Algo salió mal. Intente otra vez.";
 
+/** Shown only when the diagnosis API returns error "unavailable". */
+export const DIAGNOSE_UNAVAILABLE_COPY = "El servicio no está disponible ahora.";
+
 export const RETRY_LABEL = "Intentar de nuevo";
 
 export const OFFLINE_COPY =
   'Sin señal. Su foto está guardada en este teléfono. Toque "Intentar de nuevo" cuando tenga señal.';
+
+export function diagnosisStatusCopy(kind: "unavailable" | "offline" | "failed"): string {
+  if (kind === "unavailable") return DIAGNOSE_UNAVAILABLE_COPY;
+  if (kind === "offline") return OFFLINE_COPY;
+  return DIAGNOSE_ERROR_COPY;
+}
 
 export const FORECAST_UNAVAILABLE_TITLE = "Pronóstico no disponible";
 

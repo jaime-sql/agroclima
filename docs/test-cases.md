@@ -39,7 +39,7 @@ Preconditions: Worker has no `VISION_API_KEY` secret.
 Steps: `POST /api/diagnose` with a photo, or submit one from `/`.
 Expected:
 - HTTP 503 and `{ "ok": false, "error": "unavailable" }`. No made-up diagnosis.
-- The page shows "Algo salió mal. Intente otra vez.", keeps the photo, and offers "Intentar de nuevo".
+- The page shows "El servicio no está disponible ahora.", keeps the photo, and offers "Intentar de nuevo". Other errors still use "Algo salió mal. Intente otra vez."
 - The risk strip and "Compartir con mi agrónomo" still work.
 
 ## TC-07 AegisFlow isolation

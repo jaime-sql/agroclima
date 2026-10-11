@@ -9,7 +9,7 @@ import {
   SIN_DATOS_MARK,
   SIN_DATOS_WORD,
 } from "@/lib/vision/copy";
-import { formatSprayWindow, formatWeekday, levelMark, levelWord } from "@/lib/format";
+import { formatChipDate, formatSprayWindow, formatWeekday, levelMark, levelWord } from "@/lib/format";
 import type { WeekAssessment } from "@/lib/risk/types";
 
 export type RiskView = WeekAssessment & {
@@ -22,7 +22,7 @@ const TONE = {
   bajo: "bg-[#DDF2E0] text-[#1E5B2A]",
 } as const;
 
-const chipSize = "h-[110px] min-h-12 min-w-12";
+const chipSize = "h-[128px] min-h-12 min-w-12";
 
 export function RiskPanel({
   risk,
@@ -85,16 +85,18 @@ export function RiskPanel({
           <div className="grid grid-cols-7 gap-0.5">
             {days.map((item, index) => {
               const weekday = formatWeekday(item.date);
+              const dayNumber = formatChipDate(item.date).split(" ")[1];
               if (item.level === null) {
                 return (
                   <button
                     key={item.date}
                     type="button"
-                    aria-label={`${weekday}, sin datos`}
+                    aria-label={`${weekday} ${dayNumber}, sin datos`}
                     aria-pressed={index === selected}
                     className={`flex ${chipSize} flex-col items-center justify-center gap-1 rounded-xl bg-[#E7E5E4] px-0.5 text-center font-bold text-[#1c1917] ${index === selected ? "ring-2 ring-[#1E5B2A]" : ""}`}
                     onClick={() => setSelected(index)}
                   >
+                    <ChipDate date={item.date} />
                     <span className="text-2xl leading-none" aria-hidden="true">
                       {SIN_DATOS_MARK}
                     </span>
@@ -107,11 +109,12 @@ export function RiskPanel({
                 <button
                   key={item.date}
                   type="button"
-                  aria-label={`${weekday}, riesgo ${word.toLocaleLowerCase("es-SV")}`}
+                  aria-label={`${weekday} ${dayNumber}, riesgo ${word.toLocaleLowerCase("es-SV")}`}
                   aria-pressed={index === selected}
                   className={`flex ${chipSize} flex-col items-center justify-center gap-1 rounded-xl px-0.5 font-bold ${TONE[item.level]} ${index === selected ? "ring-2 ring-[#1E5B2A]" : ""}`}
                   onClick={() => setSelected(index)}
                 >
+                  <ChipDate date={item.date} />
                   <span className="text-2xl leading-none" aria-hidden="true">
                     {levelMark(item.level)}
                   </span>
@@ -162,4 +165,8 @@ export function RiskPanel({
       ) : null}
     </section>
   );
+}
+
+function ChipDate({ date }: { date: string }) {
+  return <span className="w-full text-center text-[18px] leading-none">{formatChipDate(date)}</span>;
 }

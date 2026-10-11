@@ -7,11 +7,10 @@ import { DEPARTMENTS, nearestPlace, placeById } from "@/lib/places";
 import { agronomistShareText, canShareFiles, whatsAppLink } from "@/lib/share";
 import {
   CONTACTS_PENDING,
-  DIAGNOSE_ERROR_COPY,
+  diagnosisStatusCopy,
   FORECAST_MISSING_COPY,
   FORECAST_UNAVAILABLE_TITLE,
   GEO_DENIED_COPY,
-  OFFLINE_COPY,
   RETRY_LABEL,
 } from "@/lib/vision/copy";
 import type { Diagnosis } from "@/lib/vision/diagnose";
@@ -19,6 +18,7 @@ import { ListenButton } from "./listen-button";
 import { RiskPanel, type RiskView } from "./risk-panel";
 
 type Step = "foto" | "resultado" | "riesgo" | "plan" | "compartir";
+type DiagnoseError = "unavailable" | "offline" | "failed";
 
 const primary =
   "min-h-14 w-full rounded-2xl bg-[#1E5B2A] px-4 text-lg font-semibold text-white";
@@ -29,7 +29,7 @@ const listenTall =
 
 function shareSummary(
   diagnosis: Diagnosis | null,
-  diagnoseError: "unavailable" | "offline" | null,
+  diagnoseError: DiagnoseError | null,
 ): string {
   if (diagnoseError || !diagnosis || !diagnosis.ok) return "No pudimos revisar la hoja.";
   if (diagnosis.label === "retomar") return "Hay que repetir la foto.";
@@ -50,7 +50,7 @@ export function HomeFlow() {
   const [preview, setPreview] = useState<string | null>(null);
   const [photoTaken, setPhotoTaken] = useState<Date | null>(null);
   const [diagnosis, setDiagnosis] = useState<Diagnosis | null>(null);
-  const [diagnoseError, setDiagnoseError] = useState<"unavailable" | "offline" | null>(null);
+  const [diagnoseError, setDiagnoseError] = useState<DiagnoseError | null>(null);
   const [diagnosing, setDiagnosing] = useState(false);
   const [slow, setSlow] = useState(false);
   const [risk, setRisk] = useState<RiskView | null>(null);
@@ -127,9 +127,10 @@ export function HomeFlow() {
       const form = new FormData();
       form.set("photo", photo);
       const response = await fetch("/api/diagnose", { method: "POST", body: form });
-      const payload = (await response.json()) as Diagnosis;
+      const payload = (await response.json()) as Diagnosis | { ok: false; error: string };
       if (payload.ok) setDiagnosis(payload);
-      else setDiagnoseError("unavailable");
+      else if (payload.error === "unavailable") setDiagnoseError("unavailable");
+      else setDiagnoseError("failed");
       setStep("resultado");
     } catch {
       setDiagnoseError("offline");
@@ -382,7 +383,7 @@ function ResultStep({
   onRetake,
 }: {
   diagnosis: Diagnosis | null;
-  diagnoseError: "unavailable" | "offline" | null;
+  diagnoseError: DiagnoseError | null;
   preview: string | null;
   planAllowed: boolean;
   risk: RiskView | null;
@@ -406,7 +407,7 @@ function ResultStep({
       {diagnoseError ? (
         <>
           <h1 className="text-[30px] font-semibold leading-tight">
-            {diagnoseError === "offline" ? OFFLINE_COPY : DIAGNOSE_ERROR_COPY}
+            {diagnosisStatusCopy(diagnoseError)}
           </h1>
           <button type="button" className={primary} onClick={onRetry}>
             {RETRY_LABEL}
@@ -554,7 +555,7 @@ function ShareStep({
 function spokenText(input: {
   step: Step;
   diagnosis: Diagnosis | null;
-  diagnoseError: "unavailable" | "offline" | null;
+  diagnoseError: DiagnoseError | null;
   diagnosing: boolean;
   slow: boolean;
   placeName: string;
@@ -572,8 +573,7 @@ function spokenText(input: {
   const forecastNote = input.riskFailed
     ? ` ${FORECAST_UNAVAILABLE_TITLE}. ${FORECAST_MISSING_COPY}`
     : "";
-  if (input.diagnoseError === "offline") return `${OFFLINE_COPY}${forecastNote}`;
-  if (input.diagnoseError === "unavailable") return `${DIAGNOSE_ERROR_COPY}${forecastNote}`;
+  if (input.diagnoseError) return `${diagnosisStatusCopy(input.diagnoseError)}${forecastNote}`;
   if (input.step === "resultado" && input.diagnosis?.ok) {
     return [input.diagnosis.headline, input.diagnosis.detail, input.diagnosis.advice, input.diagnosis.card]
       .filter(Boolean)

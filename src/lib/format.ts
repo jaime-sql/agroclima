@@ -33,6 +33,21 @@ export function formatWeekday(isoDate: string): string {
   return label.charAt(0).toLocaleUpperCase("es-SV") + label.slice(1);
 }
 
+/** Short day and date for a risk tile, such as "Dom 11". */
+export function formatChipDate(isoDate: string): string {
+  const date = dateAtNoonElSalvador(isoDate);
+  const weekday = new Intl.DateTimeFormat("es-SV", {
+    weekday: "short",
+    timeZone: "America/El_Salvador",
+  }).format(date).replace(/\.$/, "");
+  const day = new Intl.DateTimeFormat("es-SV", {
+    day: "numeric",
+    timeZone: "America/El_Salvador",
+  }).format(date);
+  const short = weekday.charAt(0).toLocaleUpperCase("es-SV") + weekday.slice(1);
+  return `${short} ${day}`;
+}
+
 export function formatPhotoDate(date: Date): string {
   return new Intl.DateTimeFormat("es-SV", {
     day: "2-digit",

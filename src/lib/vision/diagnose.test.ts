@@ -2,8 +2,11 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   DIAGNOSE_ERROR_COPY,
+  DIAGNOSE_UNAVAILABLE_COPY,
+  diagnosisStatusCopy,
   FORECAST_MISSING_COPY,
   FORECAST_UNAVAILABLE_TITLE,
+  OFFLINE_COPY,
   RETRY_LABEL,
   SIN_DATOS_CARD,
   SIN_DATOS_MARK,
@@ -25,7 +28,12 @@ describe("diagnosis", () => {
     });
     assert.equal(called, false);
     assert.deepEqual(result, { ok: false, error: "unavailable" });
+    assert.equal(DIAGNOSE_UNAVAILABLE_COPY, "El servicio no está disponible ahora.");
+    assert.equal(diagnosisStatusCopy("unavailable"), DIAGNOSE_UNAVAILABLE_COPY);
     assert.equal(DIAGNOSE_ERROR_COPY, "Algo salió mal. Intente otra vez.");
+    assert.equal(diagnosisStatusCopy("failed"), DIAGNOSE_ERROR_COPY);
+    assert.equal(diagnosisStatusCopy("offline"), OFFLINE_COPY);
+    assert.notEqual(DIAGNOSE_UNAVAILABLE_COPY, DIAGNOSE_ERROR_COPY);
     assert.equal(RETRY_LABEL, "Intentar de nuevo");
     assert.equal(SIN_DATOS_MARK, "–");
     assert.equal(SIN_DATOS_WORD, "Sin datos");
