@@ -30,10 +30,10 @@ Spanish reason (pick the top factor):
 ## 2a. Edge cases (decided Oct 11)
 - Bajo days always use a bajo sentence (never «…riesgo moderado.»). Score 0–1 with warm wet hours > 0 → «Pocas horas húmedas favorables; riesgo bajo de roya».
 - Previous-day bonus: only if BOTH today and the previous calendar date (present in the forecast) have warm_wet_h ≥ 6; otherwise no bonus. Day 1 never gets it.
-- Optimum temperature: ≥ 3 wet hours in 21–25 °C.
-- R5: the diurnal range (max−min) is not scored. The daily maximum still scores when it is 22–28 °C.
+- Optimum temperature: ≥ 3 wet hours in 21–25 °C (recipe wins over the old "overlap" wording).
+- R5: the diurnal-range (max−min) condition is dropped; only temperature_2m_max 22–28 °C scores.
 - Daily precipitation_sum ≥ 1 mm with 0 wet hours → bajo, «Llueve, pero sin horas húmedas favorables a la roya».
-- A day with missing hourly data (fewer than 24 hours) or a null in a required field (hourly temperature_2m, relative_humidity_2m, precipitation; daily temperature_2m_max, precipitation_sum, precipitation_probability_max) → «sin datos», no level. Nulls are not dry hours. Hourly precipitation_probability is not required (spray window only).
+- A day with missing hourly data (fewer than 24 hours) or a null in a required field (hourly temperature_2m, relative_humidity_2m, precipitation; daily temperature_2m_max, precipitation_sum, precipitation_probability_max) → «sin datos», no level. Hourly precipitation_probability is not required (spray window only).
 - Any fetch failure, empty reply, or reply whose timezone ≠ America/El_Salvador → «pronóstico no disponible» for the whole strip, no levels.
 
 ## 3. Open-Meteo fields (verified at https://open-meteo.com/en/docs, 2026-10-10)

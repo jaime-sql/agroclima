@@ -237,7 +237,7 @@ describe("coffee rust risk rules", () => {
     assert.equal(scoreFor(3).score, 1);
     assert.equal(scoreFor(2).score, 0);
 
-    const withBonus = assessForecast(
+    const paired = assessForecast(
       forecast([
         {
           date: "2026-10-10",
@@ -250,10 +250,29 @@ describe("coffee rust risk rules", () => {
           temperature_2m_max: 20,
         },
       ]),
-    ).days[1];
+    );
+    assert.equal(paired.days[0].consecutiveBonus, false);
+    const withBonus = paired.days[1];
     assert.equal(withBonus.consecutiveBonus, true);
     assert.equal(withBonus.score, 3);
     assert.equal(withBonus.level, "medio");
+
+    const skippedDate = assessForecast(
+      forecast([
+        {
+          date: "2026-10-10",
+          hours: wetHours("2026-10-10", 6, 18),
+          temperature_2m_max: 20,
+        },
+        {
+          date: "2026-10-12",
+          hours: wetHours("2026-10-12", 6, 18),
+          temperature_2m_max: 20,
+        },
+      ]),
+    ).days[1];
+    assert.equal(skippedDate.consecutiveBonus, false);
+    assert.equal(skippedDate.score, 2);
 
     const todayShort = assessForecast(
       forecast([
