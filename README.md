@@ -35,7 +35,7 @@ Escuchar stores audio in the R2 bucket `agroclima-audio` (binding `AUDIO_CACHE` 
 npx wrangler r2 bucket create agroclima-audio
 ```
 
-The deploy workflow runs that create and continues when the bucket already exists. If the binding is missing, Escuchar still plays and skips the cache.
+The deploy workflow runs that create. A successful create, or a reply that the bucket already exists, keeps the `AUDIO_CACHE` binding. If R2 is not enabled (`code: 10042`) or the create fails for any other reason, that step still succeeds and removes the binding from the deploy config. `wrangler deploy` then publishes the Worker, and Escuchar plays without a cache. The binding stays in the committed `wrangler.jsonc` for an account where R2 is enabled.
 
 ## Known limitations
 
