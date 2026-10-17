@@ -47,21 +47,20 @@ The site, the 7-day risk API, diagnosis, and Escuchar run on the Cloudflare Work
 | Ask agent `agroclima-ask` | Blaxel |
 | Bucket `agroclima-audio` | Cloudflare R2, optional |
 
-Deploy the ask agent by hand from `blaxel/ask-agent`. There is no Blaxel GitHub Action. The key stays out of the repo and out of GitHub.
+Deploy the ask agent by hand with `blaxel/deploy.sh`. There is no Blaxel GitHub Action. The key stays out of the repo and out of GitHub. `bl deploy` uploads only the directory it starts in, so the script copies `blaxel/ask-agent` into a temp directory (without `node_modules` or tests), copies `src/lib/ask-core.ts` and `src/lib/openai.ts` to `src/shared/`, rewrites the service imports to `./shared/`, and runs `bl deploy --yes --wait -s OPENAI_API_KEY="$OPENAI_API_KEY"` there. The key is read from the environment. The script does not print it and does not write it to disk. The committed service still imports `src/lib`, so the Worker and the agent keep one source file.
+
+Set `OPENAI_API_KEY` in the environment, then:
 
 ```bash
-cd blaxel/ask-agent
-bl deploy
+./blaxel/deploy.sh
 ```
 
-`npm run build` in that folder bundles the shared ask module to `dist/index.js`. `npm run prod` starts that file. `bl deploy` runs those scripts. Local `npm start` and `npm run dev` use `tsx` and bind `HOST` and `PORT`.
+`VISION_MODEL` defaults to `gpt-4.1-mini`. `VISION_API_BASE_URL` defaults to `https://api.openai.com/v1`. Do not put the key in `blaxel.toml`. Local `npm start` and `npm run dev` in `blaxel/ask-agent` use `tsx` and bind `HOST` and `PORT`.
 
-Set `OPENAI_API_KEY` as a Blaxel secret (`bl deploy --env-file` with a file that is not committed, or `bl deploy -s OPENAI_API_KEY=...`). `VISION_MODEL` defaults to `gpt-4.1-mini`. `VISION_API_BASE_URL` defaults to `https://api.openai.com/v1`. Do not put the key in `blaxel.toml`.
-
-On the Worker, set secrets `BLAXEL_ASK_URL` (for example `https://run.blaxel.ai/hackatonhf2025/agents/agroclima-ask`) and `BLAXEL_API_KEY`. The Worker sends `X-Blaxel-Authorization: Bearer <key>` and `X-Blaxel-Workspace: hackatonhf2025` with the agent JSON `{ "question", "grounding" }`. The call times out after 8 seconds. A timeout, a network error, or any non-200 falls back to the Worker's direct OpenAI call. If either secret is missing, that direct call is the only path. The response header `X-Agroclima-Backend` is `blaxel` or `direct`.
+On the Worker, set secrets `BLAXEL_ASK_URL` (`https://run.blaxel.ai/hackatonhf2025/agents/agroclima-ask`) and `BLAXEL_API_KEY`. The live agent endpoint is `POST https://run.blaxel.ai/hackatonhf2025/agents/agroclima-ask` with headers `X-Blaxel-Authorization: Bearer <token>` and `X-Blaxel-Workspace: hackatonhf2025`, and body `{ "question", "grounding" }`. The call times out after 8 seconds. A timeout, a network error, or any non-200 falls back to the Worker's direct OpenAI call. If either secret is missing, that direct call is the only path. The response header `X-Agroclima-Backend` is `blaxel` or `direct`.
 
 ```bash
-curl -sS -X POST "$BLAXEL_ASK_URL" -H "Content-Type: application/json" -H "X-Blaxel-Authorization: Bearer $BLAXEL_API_KEY" -H "X-Blaxel-Workspace: hackatonhf2025" -d '{"question":"¿Qué significa Probable?","grounding":{"place":"Zona cafetalera de Santa Ana","timezone":"America/El_Salvador","days":[],"diagnosis":null}}'
+curl -sS -X POST "https://run.blaxel.ai/hackatonhf2025/agents/agroclima-ask" -H "Content-Type: application/json" -H "X-Blaxel-Authorization: Bearer <token>" -H "X-Blaxel-Workspace: hackatonhf2025" -d '{"question":"¿Qué significa Probable?","grounding":{"place":"Zona cafetalera de Santa Ana","timezone":"America/El_Salvador","days":[],"diagnosis":null}}'
 ```
 
 `GET /health` on the agent returns 200.
