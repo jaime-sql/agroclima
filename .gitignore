@@ -22,6 +22,10 @@
 /.wrangler/
 .dev.vars
 
+# Blaxel ask agent build
+/blaxel/ask-agent/node_modules/
+/blaxel/ask-agent/dist/
+
 # production
 /build
 

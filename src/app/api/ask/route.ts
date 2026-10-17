@@ -1,4 +1,4 @@
-import { answerQuestion, clientIp, costHeaders } from "@/lib/ask";
+import { answerQuestion, askHeaders, clientIp } from "@/lib/ask";
 import { readServerEnv } from "@/lib/server-env";
 
 const MAX_BODY = 20_000;
@@ -31,15 +31,13 @@ export async function POST(request: Request) {
       apiKey: env.OPENAI_API_KEY,
       baseUrl: env.VISION_API_BASE_URL,
       model: env.VISION_MODEL,
+      blaxelAskUrl: env.BLAXEL_ASK_URL,
+      blaxelApiKey: env.BLAXEL_API_KEY,
     },
     ip: clientIp((name) => request.headers.get(name)),
   });
-  const headers = new Headers({ "Cache-Control": "no-store" });
-  for (const [name, value] of Object.entries(costHeaders(result))) {
-    headers.set(name, value);
-  }
   return Response.json(
     { ok: result.ok, error: result.error, answer: result.answer, refused: result.refused },
-    { status: result.status, headers },
+    { status: result.status, headers: askHeaders(result) },
   );
 }

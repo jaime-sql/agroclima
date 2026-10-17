@@ -7,6 +7,8 @@ const NAMES = [
   "VISION_API_BASE_URL",
   "ELEVENLABS_API_KEY",
   "ELEVENLABS_VOICE_ID",
+  "BLAXEL_ASK_URL",
+  "BLAXEL_API_KEY",
 ] as const;
 
 export type ServerEnvName = (typeof NAMES)[number];
