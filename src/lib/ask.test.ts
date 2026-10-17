@@ -6,6 +6,7 @@ import {
   ASK_MAX_QUESTION_CHARS,
   ASK_MAX_REPLY_TOKENS,
   askChips,
+  askHeaders,
   ASK_HEADER,
   ASK_PLACEHOLDER,
   ASK_RATE_LIMITED,
@@ -15,6 +16,8 @@ import {
   ASK_TOO_LONG,
   ASK_UNAVAILABLE,
   answerQuestion,
+  BLAXEL_ASK_TIMEOUT_MS,
+  BLAXEL_WORKSPACE,
   clientIp,
   costHeaders,
   limitSentences,
@@ -287,6 +290,141 @@ describe("ask AgroClima", () => {
     assert.equal(refused.refused, true);
     assert.equal(refused.answer, ASK_REFUSAL);
     assert.equal(refused.calledModel, true);
+  });
+
+  it("keeps the direct OpenAI call when Blaxel is unset", async () => {
+    assert.equal(BLAXEL_ASK_TIMEOUT_MS, 8000);
+    assert.equal(BLAXEL_WORKSPACE, "hackatonhf2025");
+    const urls: string[] = [];
+    const result = await answerQuestion({
+      body: { question: "¿Puedo fumigar hoy?", place: "Zona cafetalera de Santa Ana", days: [] },
+      env: { apiKey: "secret", blaxelAskUrl: "  ", blaxelApiKey: "" },
+      ip: "203.0.113.50",
+      fetchImpl: async (input, init) => {
+        urls.push(String(input));
+        const headers = init?.headers as Record<string, string>;
+        assert.equal(headers["X-Blaxel-Authorization"], undefined);
+        assert.equal(init?.signal, undefined);
+        return Response.json({
+          choices: [{ message: { content: "Revise la etiqueta." } }],
+          usage: { prompt_tokens: 6, completion_tokens: 3 },
+        });
+      },
+    });
+    assert.deepEqual(urls, ["https://api.openai.com/v1/chat/completions"]);
+    assert.equal(result.backend, "direct");
+    assert.equal(result.ok, true);
+    const headers = askHeaders(result);
+    assert.equal(headers.get("X-Agroclima-Backend"), "direct");
+    assert.equal(headers.get("X-Agroclima-Prompt-Tokens"), "6");
+    assert.equal(headers.get("Cache-Control"), "no-store");
+    let directCalls = 0;
+    const onlyUrl = await answerQuestion({
+      body: { question: "¿Y ahora?", place: "Santa Ana", days: [] },
+      env: { apiKey: "secret", blaxelAskUrl: "https://ask.blaxel.test/no" },
+      ip: "203.0.113.51",
+      fetchImpl: async (input) => {
+        directCalls += 1;
+        assert.equal(String(input).includes("blaxel"), false);
+        return Response.json({ choices: [{ message: { content: "Sí." } }] });
+      },
+    });
+    assert.equal(onlyUrl.backend, "direct");
+    assert.equal(directCalls, 1);
+  });
+
+  it("calls Blaxel with the agent body and falls back to OpenAI on timeout or non-200", async () => {
+    const blaxelUrl = "https://ask.blaxel.test/agroclima-ask";
+    const calls: Array<{ url: string; body: string; headers: Record<string, string>; signal: boolean }> = [];
+    const fetchImpl: typeof fetch = async (input, init) => {
+      const headers = init?.headers as Record<string, string>;
+      calls.push({
+        url: String(input),
+        body: String(init?.body ?? ""),
+        headers,
+        signal: init?.signal instanceof AbortSignal,
+      });
+      if (String(input) === blaxelUrl) {
+        if (calls.length === 1) throw new DOMException("The operation was aborted", "TimeoutError");
+        return new Response("disabled", { status: 503 });
+      }
+      const parsed = JSON.parse(String(init?.body)) as {
+        messages: Array<{ content: string }>;
+      };
+      assert.equal(parsed.messages[0]?.content, ASK_SYSTEM_PROMPT);
+      return Response.json({
+        choices: [{ message: { content: "El lunes el riesgo es alto." } }],
+        usage: { prompt_tokens: 11, completion_tokens: 5 },
+      });
+    };
+    const env = { apiKey: "worker-secret", blaxelAskUrl: blaxelUrl, blaxelApiKey: "blaxel-secret" };
+    const body = {
+      question: "¿Por qué el lunes es Alto?",
+      place: "Zona cafetalera de Santa Ana",
+      timezone: "America/El_Salvador",
+      summary: "no",
+      days: [],
+    };
+    const timedOut = await answerQuestion({ body, env, ip: "203.0.113.60", now: 9_000, fetchImpl });
+    assert.equal(timedOut.backend, "direct");
+    assert.equal(timedOut.answer, "El lunes el riesgo es alto.");
+    const failed = await answerQuestion({ body, env, ip: "203.0.113.61", now: 9_000, fetchImpl });
+    assert.equal(failed.backend, "direct");
+    assert.equal(askHeaders(failed).get("X-Agroclima-Backend"), "direct");
+    assert.equal(calls[0]?.signal, true);
+    assert.equal(calls[0]?.headers["X-Blaxel-Authorization"], "Bearer blaxel-secret");
+    assert.equal(calls[0]?.headers["X-Blaxel-Workspace"], "hackatonhf2025");
+    assert.equal(calls[0]?.headers.Authorization, undefined);
+    const sent = JSON.parse(calls[0]?.body ?? "{}") as { inputs?: unknown; question: string; grounding: { place: string } };
+    assert.equal(sent.inputs, undefined);
+    assert.equal(sent.question, "¿Por qué el lunes es Alto?");
+    assert.equal(sent.grounding.place, "Zona cafetalera de Santa Ana");
+    assert.equal(calls.filter((call) => call.url === blaxelUrl).length, 2);
+    assert.equal(calls.filter((call) => call.url.includes("chat/completions")).length, 2);
+    const hosted = await answerQuestion({
+      body,
+      env: { ...env, apiKey: "" },
+      ip: "203.0.113.62",
+      now: 9_000,
+      fetchImpl: async (input, init) => {
+        assert.equal(String(input), blaxelUrl);
+        assert.equal((init?.headers as Record<string, string>)["X-Blaxel-Workspace"], BLAXEL_WORKSPACE);
+        return Response.json({
+          ok: true,
+          answer: "El lunes es Alto. Una frase más. Otra. Y otra.",
+          refused: false,
+          promptTokens: 7,
+          completionTokens: 3,
+          latencyMs: 15,
+        });
+      },
+    });
+    assert.equal(hosted.backend, "blaxel");
+    assert.equal(hosted.answer, "El lunes es Alto. Una frase más. Otra.");
+    assert.equal(hosted.latencyMs, 15);
+    const hostedHeaders = askHeaders(hosted);
+    assert.equal(hostedHeaders.get("X-Agroclima-Backend"), "blaxel");
+    assert.equal(hostedHeaders.get("X-Agroclima-Prompt-Tokens"), "7");
+    assert.equal(hostedHeaders.get("X-Agroclima-Latency-Ms"), "15");
+    const refused = await answerQuestion({
+      body,
+      env,
+      ip: "203.0.113.63",
+      now: 9_000,
+      fetchImpl: async () =>
+        Response.json({
+          ok: false,
+          answer: ASK_REFUSAL,
+          refused: true,
+          promptTokens: 1,
+          completionTokens: 1,
+          latencyMs: 4,
+        }),
+    });
+    assert.equal(refused.backend, "blaxel");
+    assert.equal(refused.refused, true);
+    assert.equal(refused.status, 200);
+    assert.equal(refused.answer, ASK_REFUSAL);
   });
 
   it("reads the client address from the edge header", () => {
