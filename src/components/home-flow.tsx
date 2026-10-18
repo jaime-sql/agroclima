@@ -15,6 +15,7 @@ import {
   municipalityCentreNote,
   type GpsScreen,
 } from "@/lib/risk/gps";
+import { pinCardLine } from "@/lib/risk/pin-card";
 import { PlaceMap, type MapPinSummary } from "./place-map";
 import { queHacerHoySpeech, todayRiskLevel } from "@/lib/que-hacer-hoy";
 import { listenScript } from "@/lib/speech";
@@ -485,7 +486,7 @@ function FotoStep({
   const matches = filterPlacesByName(placesInDepartment(department), municipalityQuery);
   const municipalityValue = matches.some((place) => place.id === placeId) ? placeId : "";
 
-  const chosenName = placeById(placeId)?.name ?? "";
+  const worstLine = pinCard && risk ? pinCardLine(risk.days) : null;
 
   return (
     <>
@@ -515,13 +516,15 @@ function FotoStep({
         </div>
       ) : null}
       <PlaceMap highlightId={highlightId} onPick={onPickPin} />
+      <a
+        href="#lista-municipios"
+        className="flex min-h-14 items-center text-lg font-semibold text-[#1E5B2A] underline"
+      >
+        Ver lista
+      </a>
       {gpsView ? null : risk || riskState !== "idle" ? (
         <div className="flex flex-col gap-3">
-          {pinCard?.level && pinCard.day ? (
-            <p className="text-lg font-semibold">
-              {chosenName}: {pinCard.level}, {pinCard.day}
-            </p>
-          ) : null}
+          {worstLine ? <p className="text-lg font-semibold">{worstLine}</p> : null}
           <RiskPanel
             risk={risk}
             loading={riskState === "loading"}

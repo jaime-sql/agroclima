@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, it } from "node:test";
-import { PLACES, placeById } from "../places.ts";
+import { LOCATION_RECORDS, PLACES, placeById } from "../places.ts";
 import { assessForecast } from "./assess.ts";
 import {
   FAR_GPS_NOTE,
@@ -12,8 +12,10 @@ import {
   municipalityCentreNote,
   OUTSIDE_EL_SALVADOR_MESSAGE,
   parseGpsQuery,
+  roundCoordinate,
 } from "./gps.ts";
 import { handleRiskQuery, loadPointRisk } from "./load.ts";
+import { clearPlaceMapCache } from "./places-forecast.ts";
 import { distanceKm, NEAREST_PIN_KM } from "./nearest.ts";
 import type { OpenMeteoForecast } from "./types.ts";
 
@@ -159,6 +161,60 @@ describe("gps forecast", () => {
     assert.equal(url.searchParams.get("longitude"), "-89.804");
     assert.equal(url.searchParams.get("elevation"), null);
     assert.equal(JSON.stringify(result).includes("13.859"), false);
+  });
+
+  it("returns the same week for a place id and that place's stored coordinate", async () => {
+    clearPlaceMapCache();
+    const fixture = readFixture();
+    assert.equal(PLACES.length, 20);
+    for (const place of PLACES) {
+      const source = LOCATION_RECORDS.find((record) => record.id === place.id);
+      assert.ok(source, place.id);
+      if (!source) continue;
+      assert.equal(place.latitude, roundCoordinate(source.lat), place.id);
+      assert.equal(place.longitude, roundCoordinate(source.lon), place.id);
+
+      let placeCalled = "";
+      const byPlace = await handleRiskQuery(
+        new URL(`https://agroclima.test/api/risk?place=${place.id}`),
+        async (input) => {
+          placeCalled = String(input);
+          return Response.json(fixture);
+        },
+      );
+      let pointCalled = "";
+      const byPoint = await handleRiskQuery(
+        new URL(
+          `https://agroclima.test/api/risk?lat=${encodeURIComponent(String(place.latitude))}&lon=${encodeURIComponent(String(place.longitude))}`,
+        ),
+        async (input) => {
+          pointCalled = String(input);
+          return Response.json(fixture);
+        },
+      );
+      assert.equal(byPlace.status, 200, place.id);
+      assert.equal(byPoint.status, 200, place.id);
+      assert.equal(byPlace.body.ok, true, place.id);
+      assert.equal(byPoint.body.ok, true, place.id);
+      if (!byPlace.body.ok || !byPoint.body.ok) continue;
+      const placeUrl = new URL(placeCalled);
+      const pointUrl = new URL(pointCalled);
+      assert.equal(placeUrl.searchParams.get("latitude"), String(place.latitude), place.id);
+      assert.equal(placeUrl.searchParams.get("longitude"), String(place.longitude), place.id);
+      assert.equal(placeUrl.searchParams.get("latitude"), pointUrl.searchParams.get("latitude"), place.id);
+      assert.equal(placeUrl.searchParams.get("longitude"), pointUrl.searchParams.get("longitude"), place.id);
+      assert.equal(placeUrl.searchParams.get("elevation"), null, place.id);
+      assert.equal(pointUrl.searchParams.get("elevation"), null, place.id);
+      assert.deepEqual(byPlace.body.days, byPoint.body.days, place.id);
+      assert.equal(byPlace.body.timezone, byPoint.body.timezone, place.id);
+      assert.deepEqual(byPlace.body.plan, byPoint.body.plan, place.id);
+      assert.equal(
+        "elevation_m" in byPoint.body ? byPoint.body.elevation_m : null,
+        fixture.elevation ?? null,
+        place.id,
+      );
+    }
+    clearPlaceMapCache();
   });
 
   it("still forecasts a listed place that sits just outside the polygon", async () => {
