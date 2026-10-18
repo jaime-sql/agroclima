@@ -25,6 +25,8 @@ import {
   OPENAI_ASK_TIMEOUT_MS,
   clientIp,
   costHeaders,
+  ensureWetHours,
+  type AskGrounding,
   DIAGNOSIS_LEVEL_MEANINGS,
   diagnosisMeaning,
   forcedAskBackend,
@@ -924,6 +926,74 @@ describe("ask AgroClima", () => {
     assert.equal(named.answer.includes("Horas húmedas:"), false);
   });
 
+  it("uses the highest-risk day sentence when the week answer names no day and one day is grounded", async () => {
+    const result = await answerQuestion({
+      body: {
+        question: "¿Cómo está el riesgo esta semana?",
+        place: "Zona cafetalera de Santa Ana",
+        days: [riskDay("2026-10-18", "alto", 21)],
+      },
+      env: { apiKey: "secret" },
+      ip: "203.0.113.148",
+      fetchImpl: async () =>
+        Response.json({
+          choices: [{ message: { content: "Esta semana el riesgo es alto." } }],
+        }),
+    });
+    assert.equal(result.answer, "Esta semana el riesgo es alto. Horas húmedas en el día de mayor riesgo: 21.");
+    assert.equal(result.wetHoursAppended, true);
+    assert.equal(askHeaders(result).get("X-Agroclima-Wet-Hours-Appended"), "true");
+    const stated = await answerQuestion({
+      body: {
+        question: "¿Cómo está el riesgo esta semana?",
+        place: "Zona cafetalera de Santa Ana",
+        days: [riskDay("2026-10-18", "alto", 21)],
+      },
+      env: { apiKey: "secret" },
+      ip: "203.0.113.149",
+      fetchImpl: async () =>
+        Response.json({
+          choices: [{ message: { content: "Esta semana el riesgo es alto, con 21 horas húmedas." } }],
+        }),
+    });
+    assert.equal(stated.wetHoursAppended, false);
+    assert.equal(stated.answer, "Esta semana el riesgo es alto, con 21 horas húmedas.");
+    assert.equal(stated.answer.includes("día de mayor riesgo"), false);
+  });
+
+  it("picks the wet-hours sentence and lowercases several day labels", () => {
+    const named = ensureWetHours("El lunes el riesgo es alto.", wetGrounding([wetDay("Lunes 12 oct", "2026-10-12", 6)]));
+    assert.equal(named.appended, true);
+    assert.equal(named.answer, "El lunes el riesgo es alto. Horas húmedas ese día: 6.");
+
+    const week = ensureWetHours(
+      "Esta semana el riesgo es alto.",
+      wetGrounding([wetDay("Domingo 18 oct", "2026-10-18", 21)]),
+    );
+    assert.equal(week.appended, true);
+    assert.equal(week.answer, "Esta semana el riesgo es alto. Horas húmedas en el día de mayor riesgo: 21.");
+
+    const several = ensureWetHours(
+      "Esta semana el riesgo es alto.",
+      wetGrounding([
+        wetDay("Domingo 18 oct", "2026-10-18", 21),
+        wetDay("Lunes 19 oct", "2026-10-19", 18),
+      ]),
+    );
+    assert.equal(several.appended, true);
+    assert.equal(
+      several.answer,
+      "Esta semana el riesgo es alto. Horas húmedas: domingo 18 oct, 21; lunes 19 oct, 18.",
+    );
+
+    const stated = ensureWetHours(
+      "El lunes el riesgo es alto, con 6 horas húmedas.",
+      wetGrounding([wetDay("Lunes 12 oct", "2026-10-12", 6)]),
+    );
+    assert.equal(stated.appended, false);
+    assert.equal(stated.answer, "El lunes el riesgo es alto, con 6 horas húmedas.");
+  });
+
   it("returns 502 when the backend throws and the fallback throws", async () => {
     const question = "pregunta-que-no-va-al-log";
     const logs = captureLogs();
@@ -1096,6 +1166,28 @@ describe("ask AgroClima", () => {
 
 function riskDay(date: string, level: "alto" | "medio" | "bajo", wetHours: number) {
   return { date, level, score: 4, wetHours, tmax: 24, rain: 1, reason: "clima tibio" };
+}
+
+function wetDay(label: string, date: string, wetHours: number): AskGrounding["days"][number] {
+  return {
+    date,
+    label,
+    level: "alto",
+    score: 4,
+    wetHours,
+    tmax: 24,
+    rain: 1,
+    reason: "clima tibio",
+  };
+}
+
+function wetGrounding(days: AskGrounding["days"]): AskGrounding {
+  return {
+    place: "Zona cafetalera de Santa Ana",
+    timezone: "America/El_Salvador",
+    days,
+    diagnosis: null,
+  };
 }
 
 function captureLogs(): { lines: () => string[]; restore: () => void } {

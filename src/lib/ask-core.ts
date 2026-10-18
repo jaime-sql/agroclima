@@ -323,7 +323,7 @@ export function ensureWetHours(
   if (targets.length === 0) return { answer, appended: false };
   const missing = targets.filter((day) => !dayWetHoursMentioned(folded, day, targets));
   if (missing.length === 0) return { answer, appended: false };
-  const sentence = wetHoursSentence(missing, targets.length === 1);
+  const sentence = wetHoursSentence(missing, targets.length === 1, named.length > 0);
   const trimmed = answer.trim();
   const gap = /[.!?…]$/.test(trimmed) ? " " : ". ";
   return { answer: `${trimmed}${gap}${sentence}`, appended: true };
@@ -444,11 +444,16 @@ function mentionsCount(sentence: string, count: number): boolean {
   return new RegExp(`(?<!\\d)${escapeRegExp(raw)}(?!\\d)`).test(sentence);
 }
 
-function wetHoursSentence(missing: AskDay[], singleTarget: boolean): string {
-  if (singleTarget && missing.length === 1) {
-    return `Horas húmedas ese día: ${hoursValue(missing[0]?.wetHours)}.`;
+function wetHoursSentence(missing: AskDay[], singleTarget: boolean, namedADay: boolean): string {
+  const only = missing.length === 1 ? missing[0] : undefined;
+  if (singleTarget && only) {
+    const count = hoursValue(only.wetHours);
+    if (namedADay) return `Horas húmedas ese día: ${count}.`;
+    return `Horas húmedas en el día de mayor riesgo: ${count}.`;
   }
-  const parts = missing.map((day) => `${day.label}, ${hoursValue(day.wetHours)}`);
+  const parts = missing.map(
+    (day) => `${day.label.toLocaleLowerCase("es")}, ${hoursValue(day.wetHours)}`,
+  );
   return `Horas húmedas: ${parts.join("; ")}.`;
 }
 
