@@ -1,7 +1,13 @@
 import { mkdirSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { formatChipDate, formatWeekday, levelMark, levelWord } from "../src/lib/format.ts";
 import { project } from "../src/lib/map/cluster.ts";
+import { RISK_CUTOFF_FOOTER } from "../src/lib/risk/assess.ts";
+import { FAR_GPS_NOTE, GRID_POINT_NOTE, MUNICIPALITY_CENTRE_NOTE, farGpsTitle } from "../src/lib/risk/gps.ts";
+import { pinCardLine } from "../src/lib/risk/pin-card.ts";
+import type { RiskLevel } from "../src/lib/risk/types.ts";
+import { RISK_ZONE_NOTE } from "../src/lib/vision/copy.ts";
 import { MIXED_LEVELS, type FixtureLevel } from "./mixed-levels.ts";
 import { PLACES } from "../src/lib/places.ts";
 
@@ -28,7 +34,7 @@ function week(place: (typeof PLACES)[number]) {
     place: { id: place.id, name: place.name },
     available: true,
     timezone: "America/El_Salvador",
-    footer: "Estimación.",
+    footer: RISK_CUTOFF_FOOTER,
     plan: {
       fungicideClasses: ["triazol"],
       doseNote: "dosis según etiqueta / su agrónomo",
@@ -156,9 +162,25 @@ test("every place opens from the 390px map in at most 3 taps", async ({ page }) 
     const card = page.locator("div.flex.flex-col.gap-3").filter({
       has: page.getByRole("heading", { name: "Riesgo de roya esta semana" }),
     });
-    await expect(card.getByText(`Zona cafetalera de ${place.name}`)).toBeVisible();
+    if (place.coordType === "town_centre") {
+      await expect(card.getByText(place.name, { exact: true })).toBeVisible();
+      await expect(card.getByText(MUNICIPALITY_CENTRE_NOTE)).toHaveCount(1);
+      await expect(card.getByText(RISK_ZONE_NOTE)).toHaveCount(0);
+      await expect(card.getByText(/Zona cafetalera/)).toHaveCount(0);
+    } else {
+      await expect(card.getByText(`Zona cafetalera de ${place.name}`)).toBeVisible();
+      await expect(card.getByText(RISK_ZONE_NOTE)).toHaveCount(1);
+      await expect(card.getByText(MUNICIPALITY_CENTRE_NOTE)).toHaveCount(0);
+    }
+    await expect(card.getByText(RISK_CUTOFF_FOOTER)).toBeVisible();
     await expect(card.getByText(`Toda la semana: ${MIXED_LEVELS[place.id]}`)).toBeVisible();
     await expect(card.getByRole("button", { name: /riesgo/i })).toHaveCount(7);
+    if (place.id === "santa-tecla-la-libertad") {
+      await card.screenshot({ path: "e2e/output/card-town-centre-390.png" });
+    }
+    if (place.id === "ahuachapan") {
+      await card.screenshot({ path: "e2e/output/card-slope-point-390.png" });
+    }
     if (place.id === "santa-ana") {
       await card.screenshot({ path: "e2e/output/pin-card-390.png" });
     }
@@ -341,6 +363,160 @@ test("mixed fixture shows A, M and B pins and a mixed cluster", async ({ page })
     expect(pin?.label, id).toContain(level);
   }
   await map.screenshot({ path: "e2e/output/mixed-pins-390.png" });
+});
+
+type GpsLevel = RiskLevel | null;
+
+/** bajo, medio, medio, alto mid-week, bajo, medio, bajo. First worst day is Wednesday. */
+const MIXED_GPS: GpsLevel[] = ["bajo", "medio", "medio", "alto", "bajo", "medio", "bajo"];
+
+function gpsWeek(elevation: number, levels: GpsLevel[] = dates.map(() => "alto")) {
+  return {
+    ok: true,
+    place: { id: "punto", name: "Punto de la cuadrícula más cercano" },
+    elevation_m: elevation,
+    available: true,
+    timezone: "America/El_Salvador",
+    footer: RISK_CUTOFF_FOOTER,
+    plan: {
+      fungicideClasses: ["triazol"],
+      doseNote: "dosis según etiqueta / su agrónomo",
+      nextDryWindow: null,
+    },
+    days: dates.map((date, index) => ({
+      date,
+      level: levels[index],
+      reason: "Humedad o lluvia algunas horas.",
+      score: 4,
+      wetHours: 10,
+      tmax: 24,
+      rain: 1,
+      warmWetHours: 8,
+      optWetHours: 2,
+      rainDay: false,
+      latencyBand: true,
+      consecutiveBonus: false,
+    })),
+  };
+}
+
+async function installGps(page: Page, elevation: number, levels?: GpsLevel[]) {
+  await page.route("**://*.openstreetmap.org/**", (route) => route.abort());
+  await page.route("**/api/risk**", async (route) => {
+    const url = new URL(route.request().url());
+    if (url.pathname.endsWith("/map")) {
+      await route.fulfill({ json: { ok: true, places: [] } });
+      return;
+    }
+    if (url.searchParams.has("lat")) {
+      await route.fulfill({ json: gpsWeek(elevation, levels) });
+      return;
+    }
+    await route.fulfill({ status: 400, json: { ok: false, error: "unknown_place" } });
+  });
+}
+
+function mixedGpsDays() {
+  return dates.map((date, index) => ({ date, level: MIXED_GPS[index] }));
+}
+
+async function expectMixedWorstDay(card: Locator) {
+  const worstDate = dates[3];
+  const line = pinCardLine(mixedGpsDays());
+  expect(line).toBe(`Peor día: ${formatWeekday(worstDate)}`);
+  await expect(card.getByText(line!, { exact: true })).toBeVisible();
+  await expect(card.getByText(/Toda la semana/)).toHaveCount(0);
+  const dayNumber = formatChipDate(worstDate).split(" ")[1];
+  const chip = card.getByRole("button", {
+    name: `${formatWeekday(worstDate)} ${dayNumber}, riesgo alto`,
+  });
+  await expect(chip).toBeVisible();
+  await expect(chip).toContainText(levelWord("alto"));
+  await expect(chip).toContainText(levelMark("alto"));
+  const mildDate = dates[0];
+  const mildNumber = formatChipDate(mildDate).split(" ")[1];
+  const mild = card.getByRole("button", {
+    name: `${formatWeekday(mildDate)} ${mildNumber}, riesgo bajo`,
+  });
+  await expect(mild).toContainText(levelWord("bajo"));
+  await expect(mild).toContainText(levelMark("bajo"));
+}
+
+test("gps near Santa Tecla shows the worst line and no place name", async ({ page, context }) => {
+  mkdirSync("e2e/output", { recursive: true });
+  await context.grantPermissions(["geolocation"]);
+  await context.setGeolocation({ latitude: 13.674, longitude: -89.289 });
+  await installGps(page, 927);
+  await page.setViewportSize({ width: 390, height: 800 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Usar mi ubicación" }).click();
+  const card = page.locator("div.flex.flex-col.gap-3").filter({
+    has: page.getByRole("heading", { name: "Riesgo de roya esta semana" }),
+  });
+  await expect(card.getByText("Toque un día")).toBeVisible();
+  await expect(card.getByText("Toda la semana: alto")).toBeVisible();
+  await expect(card.getByText("Punto de la cuadrícula más cercano")).toHaveCount(0);
+  await expect(card.getByText(GRID_POINT_NOTE)).toHaveCount(1);
+  await expect(card.getByText(RISK_ZONE_NOTE)).toHaveCount(0);
+  await expect(card.getByText(MUNICIPALITY_CENTRE_NOTE)).toHaveCount(0);
+  await expect(card.getByText("Santa Tecla")).toHaveCount(0);
+  await expect(card.getByText(/Pronóstico de /)).toHaveCount(0);
+  await expect(page.locator("#departamento")).toHaveValue("");
+  await card.screenshot({ path: "e2e/output/gps-card-390.png" });
+});
+
+test("gps far from every pin keeps the location title and the worst line", async ({ page, context }) => {
+  await context.grantPermissions(["geolocation"]);
+  await context.setGeolocation({ latitude: 13.48, longitude: -88.18 });
+  await installGps(page, 812);
+  await page.setViewportSize({ width: 390, height: 800 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Usar mi ubicación" }).click();
+  const card = page.locator("div.flex.flex-col.gap-3").filter({
+    has: page.getByRole("heading", { name: "Riesgo de roya esta semana" }),
+  });
+  await expect(card.getByRole("heading", { name: farGpsTitle(812) })).toBeVisible();
+  await expect(card.getByText(FAR_GPS_NOTE)).toHaveCount(1);
+  await expect(card.getByText("Toda la semana: alto")).toBeVisible();
+  await expect(card.getByText("Toque un día")).toBeVisible();
+  await expect(card.getByText(GRID_POINT_NOTE)).toHaveCount(0);
+  await expect(card.getByText(RISK_ZONE_NOTE)).toHaveCount(0);
+  await expect(card.getByText(MUNICIPALITY_CENTRE_NOTE)).toHaveCount(0);
+  await expect(card.getByText(/Pronóstico de /)).toHaveCount(0);
+  await expect(page.locator("#departamento")).toHaveValue("");
+});
+
+test("gps near Santa Tecla names the first worst day of a mixed week", async ({ page, context }) => {
+  await context.grantPermissions(["geolocation"]);
+  await context.setGeolocation({ latitude: 13.674, longitude: -89.289 });
+  await installGps(page, 927, MIXED_GPS);
+  await page.setViewportSize({ width: 390, height: 800 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Usar mi ubicación" }).click();
+  const card = page.locator("div.flex.flex-col.gap-3").filter({
+    has: page.getByRole("heading", { name: "Riesgo de roya esta semana" }),
+  });
+  await expectMixedWorstDay(card);
+  await expect(card.getByText(GRID_POINT_NOTE)).toHaveCount(1);
+  await expect(card.getByText("Santa Tecla")).toHaveCount(0);
+  await expect(page.locator("#departamento")).toHaveValue("");
+});
+
+test("gps far from every pin names the first worst day of a mixed week", async ({ page, context }) => {
+  await context.grantPermissions(["geolocation"]);
+  await context.setGeolocation({ latitude: 13.48, longitude: -88.18 });
+  await installGps(page, 812, MIXED_GPS);
+  await page.setViewportSize({ width: 390, height: 800 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Usar mi ubicación" }).click();
+  const card = page.locator("div.flex.flex-col.gap-3").filter({
+    has: page.getByRole("heading", { name: "Riesgo de roya esta semana" }),
+  });
+  await expect(card.getByRole("heading", { name: farGpsTitle(812) })).toBeVisible();
+  await expect(card.getByText(FAR_GPS_NOTE)).toHaveCount(1);
+  await expectMixedWorstDay(card);
+  await expect(card.getByText(GRID_POINT_NOTE)).toHaveCount(0);
+  await expect(page.locator("#departamento")).toHaveValue("");
 });
 
 test("the production build cannot load the level fixture", () => {

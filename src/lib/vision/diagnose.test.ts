@@ -12,10 +12,12 @@ import {
   SIN_DATOS_CARD,
   SIN_DATOS_MARK,
   SIN_DATOS_WORD,
+  riskSourceNote,
   riskStripSubtitle,
   showsActionPlan,
 } from "./copy.ts";
-import { PLACES } from "../places.ts";
+import { LOCATION_RECORDS, PLACES } from "../places.ts";
+import { MUNICIPALITY_CENTRE_NOTE } from "../risk/gps.ts";
 import { DEFAULT_OPENAI_MODEL } from "../openai.ts";
 import { diagnoseImage, interpretDiagnosis, parseModelPayload } from "./diagnose.ts";
 
@@ -68,11 +70,36 @@ describe("diagnosis", () => {
       "Zona cafetalera de Chalatenango · toque un día",
     );
     assert.equal(RISK_ZONE_NOTE, "Clima de una zona cafetalera cercana, no de su finca");
+    assert.equal(riskSourceNote("slope_point"), RISK_ZONE_NOTE);
     assert.equal(showsActionPlan("unavailable", true), false);
     assert.equal(showsActionPlan("failed", true), false);
     assert.equal(showsActionPlan("offline", true), false);
     assert.equal(showsActionPlan(null, true), true);
     assert.equal(showsActionPlan(null, false), false);
+  });
+
+  it("shows one source line for every listed place", () => {
+    assert.equal(LOCATION_RECORDS.length, 20);
+    let townCentres = 0;
+    let slopePoints = 0;
+    for (const record of LOCATION_RECORDS) {
+      const subtitle = riskStripSubtitle(record.name, record.coord_type);
+      const note = riskSourceNote(record.coord_type);
+      const lines = [RISK_ZONE_NOTE, MUNICIPALITY_CENTRE_NOTE].filter((line) => line === note);
+      assert.equal(lines.length, 1, record.id);
+      if (record.coord_type === "town_centre") {
+        townCentres += 1;
+        assert.equal(subtitle, record.name, record.id);
+        assert.equal(subtitle.includes("Zona cafetalera"), false, record.id);
+        assert.equal(note, MUNICIPALITY_CENTRE_NOTE, record.id);
+      } else {
+        slopePoints += 1;
+        assert.equal(subtitle, `Zona cafetalera de ${record.name} · toque un día`, record.id);
+        assert.equal(note, RISK_ZONE_NOTE, record.id);
+      }
+    }
+    assert.equal(townCentres, 17);
+    assert.equal(slopePoints, 3);
   });
 
   it("lets a retake win, and keeps a healthy leaf unsure below 0.85", () => {

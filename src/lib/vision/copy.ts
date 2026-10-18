@@ -1,3 +1,5 @@
+import { MUNICIPALITY_CENTRE_NOTE } from "../risk/gps.ts";
+
 /** Visible copy from the mobile flow. Buttons and sentences stay in Spanish. */
 
 export const DIAGNOSE_ERROR_COPY = "Algo salió mal. Intente otra vez.";
@@ -31,7 +33,11 @@ export function coffeeZoneLabel(placeName: string): string {
   return `Zona cafetalera de ${placeName}`;
 }
 
-export function riskStripSubtitle(placeName: string): string {
+export type RiskCoordType = "town_centre" | "slope_point";
+
+/** Subtitle for the coordinate the forecast actually used. */
+export function riskStripSubtitle(placeName: string, coordType?: RiskCoordType | null): string {
+  if (coordType === "town_centre") return placeName;
   return `${coffeeZoneLabel(placeName)} · toque un día`;
 }
 
@@ -46,6 +52,11 @@ export function showsActionPlan(
 
 export const RISK_ZONE_NOTE =
   "Clima de una zona cafetalera cercana, no de su finca";
+
+/** The one source line on a listed-place card. GPS omits this and keeps its own grid or far note. */
+export function riskSourceNote(coordType?: RiskCoordType | null): string {
+  return coordType === "town_centre" ? MUNICIPALITY_CENTRE_NOTE : RISK_ZONE_NOTE;
+}
 
 export const GEO_DENIED_COPY =
   "No pudimos usar su ubicación. Elija su municipio.";

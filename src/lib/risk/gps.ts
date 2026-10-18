@@ -117,7 +117,7 @@ export function gpsScreen(input: {
   };
 }
 
-/** The centre-of-municipality sentence. Hidden for GPS and for the three slope points. */
+/** Town-centre sentence. Hidden for GPS and for slope points. The card renders it once. */
 export function municipalityCentreNote(
   source: "pin" | "municipality" | "gps" | null,
   coordType: "town_centre" | "slope_point" | null,
