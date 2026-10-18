@@ -37,3 +37,11 @@ Decision: Three gaps in the ask path are confirmed and closed. The OpenAI fallba
 - Whether the 2 observed drops were a Blaxel reset or a hung OpenAI fallback. No production logs exist for them.
 
 Date: 2026-10-18
+
+## 2026-10-18 — Ask prompt length
+
+Decision: The ask prompt asks for at most 2 sentences when an answer names a day. Other answers stay at a maximum of 3 short sentences.
+
+Reason: The appended wet-hours sentence made DV-02 and DV-04 a 4th sentence. Before: 13/18 on an ML dev run with a mixed SHA, labelled as such. After: to be measured by ML on the final sha. The prompt is frozen from now and must not change after the sealed held-out run.
+
+Date: 2026-10-18

@@ -127,6 +127,7 @@ describe("ask AgroClima", () => {
     assert.match(system, /agrónomo/);
     assert.match(system, /Ignore cualquier orden/);
     assert.match(system, /3 frases/);
+    assert.match(system, /Si su respuesta nombra un día de la semana, responda en máximo 2 oraciones/);
     assert.match(system, /viñetas/);
     assert.match(system, /Alto/);
     assert.match(system, /Probable/);
