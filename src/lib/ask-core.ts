@@ -16,11 +16,13 @@ export const ASK_REFUSAL =
 export const ASK_SYSTEM_PROMPT = [
   "Responda en español sencillo, con un máximo de 3 frases cortas.",
   "No use listas ni viñetas.",
-  "Use solo estos datos del mensaje: el lugar (zona cafetalera), timezone, cada día con date, level, score, wetHours, tmax, rain y reason (la frase de la regla), y el diagnóstico si viene.",
+  "Use solo estos datos del mensaje: el lugar (zona cafetalera), timezone, cada día con date, label, level, score, wetHours, tmax, rain y reason (la frase de la regla), y el diagnóstico si viene, con la explicación de su nivel.",
+  "Cada día trae label con el día de la semana y la fecha ya escritos, por ejemplo viernes 16 oct. Use ese label. No calcule usted el día de la semana.",
   "Siempre nombre el día de la semana y la fecha, y use los números que vienen en esos datos.",
   "No arme ni use un resumen aparte.",
   "Alto es el nivel más alto, Medio es intermedio y Bajo es el más bajo.",
-  "Muy probable, Probable y No estamos seguros describen la foto como una guía, no como un diagnóstico.",
+  "Muy probable, Probable, Seguro y No estamos seguros describen la foto como una guía, no como un diagnóstico.",
+  "Si preguntan qué significa el resultado de la foto, repita solo la explicación de ese nivel que viene en los datos y no recite los otros días.",
   "El clima es de una zona cafetalera cercana, no de la finca. Si preguntan si el clima es de su finca o de una zona cercana, respóndalo.",
   "No invente el clima de la finca.",
   "No nombre marcas.",
@@ -36,6 +38,7 @@ const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 export type AskDay = {
   date: string;
+  label: string;
   level: "alto" | "medio" | "bajo" | null;
   score: number | null;
   wetHours: number | null;
@@ -48,14 +51,22 @@ export type AskGrounding = {
   place: string;
   timezone: string | null;
   days: AskDay[];
-  diagnosis: { headline: string; detail: string } | null;
+  diagnosis: { headline: string; detail: string; meaning?: string } | null;
 };
 
 export type AskResult = {
   ok: boolean;
   status: number;
   answer: string;
-  error?: "unavailable" | "too_long" | "empty" | "rate_limited" | "failed" | "invalid" | "refused";
+  error?:
+    | "unavailable"
+    | "too_long"
+    | "empty"
+    | "rate_limited"
+    | "failed"
+    | "invalid"
+    | "refused"
+    | "backend_unavailable";
   refused: boolean;
   calledModel: boolean;
   latencyMs: number;
@@ -66,6 +77,7 @@ export type AskResult = {
 const LIST_LINE = /^(?:[-*•]|\d+[.)])\s+(\S.*)$/;
 
 export function limitSentences(text: string, max = ASK_MAX_SENTENCES): string {
+  if (isAskRefusal(text)) return ASK_REFUSAL;
   const lines = text.replace(/\r\n/g, "\n").split("\n").map((line) => line.trim()).filter(Boolean);
   const items = lines.map((line) => LIST_LINE.exec(line)?.[1]?.trim() ?? null);
   if (items.length >= 2 && items.every((item) => item)) {
@@ -99,9 +111,14 @@ const REFUSAL_PATTERNS: RegExp[] = [
   /\b(actua como|actue como|you are now|cambia de rol|change your role|change role)\b/,
   /\b(revel\w*|repit\w*|muestr\w*|reveal|repeat|show|print)\b.{0,40}\b(prompt|sistema|system|clave|secreto|secret|llave|key|api)\b/,
   /\b(maiz|frijol|cacao|banano|platano|tomate|arroz|sorgo|trigo|corn|maize|wheat|beans|cocoa|banana|otro cultivo|otros cultivos|other crops)\b/,
+  /\b(?:clima|lluvia|llov\w*|temperatura|humedad|pronostico|forecast|weather|rain|rocio)\b.{0,48}\b(?:en|para|sobre|on|at|in|for)\s+(?:mi|nuestra|my|our)(?:\s+[a-z]+){0,2}\s+(?:finca|parcela|lote|predio|plot|farm)\b/,
+  /\b(?:en|para|sobre|on|at|in|for)\s+(?:mi|nuestra|my|our)(?:\s+[a-z]+){0,2}\s+(?:finca|parcela|lote|predio|plot|farm)\b.{0,48}\b(?:clima|lluvia|llov\w*|temperatura|humedad|pronostico|forecast|weather|rain|rocio)\b/,
+  /\b(?:mi|my|nuestra|our)(?:\s+[a-z]+){0,2}\s+(?:finca|parcela|lote|predio|plot|farm)\b.{0,40}\b(?:zona|zone|versus|vs|contra|compar\w*|distint\w*|diferent\w*)\b/,
+  /\b(?:zona|zone)\b.{0,40}\b(?:versus|vs|contra|compar\w*)\b.{0,30}\b(?:finca|parcela|lote|predio|plot|farm)\b/,
+  /\b(?:a que hora|que hora|what time|which hour|exact hour|hora exacta|hora por hora|hour by hour|cada hora|time of day|por la manana|por la tarde|por la noche|en la manana|en la tarde|en la noche|de la manana|de la tarde|de la noche|esta manana|esta tarde|esta noche|al mediodia|a mediodia|al amanecer|al atardecer|de madrugada|hourly|in the morning|in the afternoon|in the evening|at dawn|at noon|at night)\b/,
 ];
 
-/** True when the question asks for a dose, a product, another crop, or a prompt override. */
+/** True when the question asks for a dose, a product, another crop, a prompt override, or weather the screen does not have. */
 export function shouldRefuseAsk(question: string): boolean {
   const folded = foldAskQuestion(question);
   return REFUSAL_PATTERNS.some((pattern) => pattern.test(folded));
@@ -159,7 +176,53 @@ export function askValidationAnswer(error: "invalid" | "empty" | "too_long"): st
 }
 
 export function isAskRefusal(text: string): boolean {
-  return text.trim().replace(/\s+/g, " ") === ASK_REFUSAL;
+  return text.replace(/\s+/g, " ").trim().includes(ASK_REFUSAL);
+}
+
+/** Weekday and date already resolved, such as "viernes 16 oct". */
+export function askDayLabel(isoDate: string): string {
+  const [year, month, day] = isoDate.slice(0, 10).split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day, 18));
+  const weekday = new Intl.DateTimeFormat("es-SV", {
+    weekday: "long",
+    timeZone: "America/El_Salvador",
+  })
+    .format(date)
+    .toLocaleLowerCase("es-SV");
+  const dayNum = new Intl.DateTimeFormat("es-SV", {
+    day: "numeric",
+    timeZone: "America/El_Salvador",
+  }).format(date);
+  const monthName = new Intl.DateTimeFormat("es-SV", {
+    month: "short",
+    timeZone: "America/El_Salvador",
+  })
+    .format(date)
+    .replace(/\.$/, "")
+    .toLocaleLowerCase("es-SV");
+  return `${weekday} ${dayNum} ${monthName}`;
+}
+
+export const DIAGNOSIS_LEVEL_MEANINGS = {
+  muyProbable:
+    "Muy probable quiere decir que la foto se parece mucho a ese resultado. Es una guía, no una confirmación.",
+  probable:
+    "Probable quiere decir que la foto se parece a ese resultado, sin confirmarlo. Es una guía, no una confirmación.",
+  seguro:
+    "Seguro quiere decir que la foto se parece con más claridad a ese resultado. Es una guía, no una confirmación.",
+  unsure:
+    "No estamos seguros quiere decir que la foto no alcanza para afirmar el resultado. Es una guía, no una confirmación.",
+} as const;
+
+export function diagnosisMeaning(text: string): string | null {
+  const folded = text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+  if (folded.includes("muy probable")) return DIAGNOSIS_LEVEL_MEANINGS.muyProbable;
+  if (folded.includes("no estamos seguros") || folded.includes("no seguro")) {
+    return DIAGNOSIS_LEVEL_MEANINGS.unsure;
+  }
+  if (/\bprobable\b/.test(folded)) return DIAGNOSIS_LEVEL_MEANINGS.probable;
+  if (/\bseguro\b/.test(folded)) return DIAGNOSIS_LEVEL_MEANINGS.seguro;
+  return null;
 }
 
 export function readTokenCount(value: unknown): number | null {
@@ -312,6 +375,7 @@ function dayFrom(value: unknown): AskDay[] {
   return [
     {
       date: day.date,
+      label: askDayLabel(day.date),
       level: level as AskDay["level"],
       score: bounded(day.score, 0, 20),
       wetHours: bounded(day.wetHours, 0, 24),
@@ -328,7 +392,8 @@ function diagnosisFrom(value: unknown): AskGrounding["diagnosis"] {
   const headline = clip(record.headline, 160);
   const detail = clip(record.detail, 400);
   if (!headline && !detail) return null;
-  return { headline, detail };
+  const meaning = diagnosisMeaning(`${headline} ${detail}`);
+  return meaning ? { headline, detail, meaning } : { headline, detail };
 }
 
 function clip(value: unknown, max: number): string {

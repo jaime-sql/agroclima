@@ -1,4 +1,4 @@
-import { answerQuestion, askHeaders, clientIp } from "@/lib/ask";
+import { answerQuestion, askHeaders, clientIp, readAskForce } from "@/lib/ask";
 import { readServerEnv } from "@/lib/server-env";
 
 const MAX_BODY = 20_000;
@@ -25,6 +25,7 @@ export async function POST(request: Request) {
     );
   }
   const env = readServerEnv();
+  const force = readAskForce((name) => request.headers.get(name));
   const result = await answerQuestion({
     body,
     env: {
@@ -35,6 +36,8 @@ export async function POST(request: Request) {
       blaxelApiKey: env.BLAXEL_API_KEY,
     },
     ip: clientIp((name) => request.headers.get(name)),
+    forceBackend: force.forceBackend,
+    evalToken: force.evalToken,
   });
   return Response.json(
     { ok: result.ok, error: result.error, answer: result.answer, refused: result.refused },
