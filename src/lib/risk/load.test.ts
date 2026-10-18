@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { PLACES } from "../places.ts";
 import { DOSE_NOTE, FUNGICIDE_CLASSES, RISK_CUTOFF_FOOTER } from "./assess.ts";
 import { loadPlaceRisk } from "./load.ts";
 import type { OpenMeteoForecast } from "./types.ts";
@@ -69,5 +70,25 @@ describe("place risk", () => {
       throw new Error("should not fetch");
     });
     assert.deepEqual(unknown, { ok: false, error: "unknown_place" });
+  });
+
+  it("loads a week for every municipal id from the locations file", async () => {
+    for (const place of PLACES) {
+      let called = "";
+      const result = await loadPlaceRisk(place.id, async (input) => {
+        called = String(input);
+        return Response.json(dryWeek());
+      });
+      assert.equal(result.ok, true, place.id);
+      if (!result.ok) continue;
+      assert.equal(result.place.id, place.id);
+      assert.equal(result.place.name, place.name);
+      assert.equal(result.days.length, 7);
+      const url = new URL(called);
+      assert.equal(url.searchParams.get("latitude"), String(place.latitude));
+      assert.equal(url.searchParams.get("longitude"), String(place.longitude));
+      assert.equal(url.searchParams.get("forecast_days"), "7");
+      assert.equal(url.searchParams.get("elevation"), null);
+    }
   });
 });

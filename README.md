@@ -17,7 +17,7 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000. The page is in Spanish: take or upload a leaf photo, pick Santa Ana, Ahuachapán, or Chalatenango (or use the phone location), then review the leaf. `GET /api/health` returns `{ "ok": true, "sha": "dev" }` locally, and the deployed short commit SHA after a deploy build. `GET /api/risk?place=santa-ana` returns the 7-day rust risk. `POST /api/diagnose` returns `{ "ok": false, "error": "unavailable" }` until the Worker secret `OPENAI_API_KEY` is set (`VISION_MODEL` defaults to `gpt-4.1-mini`). `POST /api/tts` stays unavailable until `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID` are set, and Escuchar then uses the phone voice. `POST /api/ask` answers from the plan screen. With `BLAXEL_ASK_URL` from `wrangler.jsonc` and the Worker secret `BLAXEL_API_KEY` it asks the Blaxel agent first. Without both of those, it calls OpenAI directly when `OPENAI_API_KEY` is set, and otherwise tells the farmer to ask an agronomist.
+Open http://localhost:3000. The page is in Spanish: take or upload a leaf photo, pick a department and municipality (or use the phone location), then review the leaf. `GET /api/health` returns `{ "ok": true, "sha": "dev" }` locally, and the deployed short commit SHA after a deploy build. `GET /api/risk?place=santa-ana` returns the 7-day rust risk. `POST /api/diagnose` returns `{ "ok": false, "error": "unavailable" }` until the Worker secret `OPENAI_API_KEY` is set (`VISION_MODEL` defaults to `gpt-4.1-mini`). `POST /api/tts` stays unavailable until `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID` are set, and Escuchar then uses the phone voice. `POST /api/ask` answers from the plan screen. With `BLAXEL_ASK_URL` from `wrangler.jsonc` and the Worker secret `BLAXEL_API_KEY` it asks the Blaxel agent first. Without both of those, it calls OpenAI directly when `OPENAI_API_KEY` is set, and otherwise tells the farmer to ask an agronomist.
 
 ```bash
 npm run lint
@@ -69,9 +69,25 @@ curl -sS -X POST "https://run.blaxel.ai/hackatonhf2025/agents/agroclima-ask" -H 
 
 A fixed check runs before any model call, on the Worker and on the Blaxel agent. It refuses doses, quantities, mixing, product or brand requests, treatment how-to, instruction overrides, prompt reveals, other crops, a forecast for one farm or plot, and hour-by-hour weather. It still answers which day is worse, whether it will rain on a named day, what Probable, Alto, Medio, and Bajo mean, and whether the weather shown is from the farm. A model reply that contains the refusal sentence is replaced by that sentence alone. Each day in the grounding already names its weekday, and a photo level includes a short meaning that is a guide, not a confirmation. The model must not invent a dose or repeat its own prompt. Evals may send `X-Agroclima-Force-Backend: direct` or `blaxel` only together with `X-Agroclima-Eval-Token` equal to the Worker secret `BLAXEL_API_KEY`; any other request ignores that header. `direct` skips Blaxel. `blaxel` returns HTTP 502 instead of falling back when that call fails or the URL is missing. `X-Agroclima-Backend` names the backend that answered.
 
+## Locations
+
+`src/data/locations.json` is the only municipality list. Replace that file and the picker, the risk API, and the forecast follow it. No code change is required. Each row is one municipality:
+
+| Field | Required | Meaning |
+| --- | --- | --- |
+| `id` | yes | Stable id. Keep `santa-ana`, `ahuachapan`, and `chalatenango`. |
+| `name` | yes | Spanish municipality name shown in the picker. |
+| `department` | yes | Spanish department name. The picker asks for this first, then the municipality. |
+| `lat` | yes | Decimal degrees. El Salvador range 13.1 to 14.5. |
+| `lon` | yes | Decimal degrees. El Salvador range -90.2 to -87.6. |
+| `elevation_m` | no | Meters from the named source. The forecast request does not send it. |
+| `source` | yes | Named public source for that row's coordinates. |
+
+The seed coordinates are municipal points from [Open Admin Data](https://openadmindata.org/api/v1/sv/municipality.json). `elevation_m` is the Open-Meteo DEM at that point. `npm test` checks unique ids, those ranges, and that department and source are not empty. `npm run check:locations` calls the Open-Meteo forecast for every row and prints the name of any row that does not return a 7-day forecast.
+
 ## Known limitations
 
-The place points are representative coffee zones (ISC origin zones Apaneca-Ilamatepec and Alotepec), not the user's farm. At 1,200-1,450 m, December, March, and April often score high under the Avelino 2015 temperature rule, not yet validated by an agronomist.
+The place points are municipal coordinates from `src/data/locations.json`, not the user's farm. December, March, and April often score high under the Avelino 2015 temperature rule, not yet validated by an agronomist.
 
 ## Riesgo del clima
 

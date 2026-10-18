@@ -3,7 +3,13 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { dayCardReason, formatPhotoDate, formatSprayWindow } from "@/lib/format";
 import { downscalePhoto } from "@/lib/photo";
-import { DEPARTMENTS, nearestPlace, placeById } from "@/lib/places";
+import {
+  departmentNames,
+  filterPlacesByName,
+  nearestPlace,
+  placeById,
+  placesInDepartment,
+} from "@/lib/places";
 import { listenScript } from "@/lib/speech";
 import { agronomistSharePayload, canShareFiles, whatsAppLink } from "@/lib/share";
 import {
@@ -48,6 +54,8 @@ export function HomeFlow() {
   const uploadRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState<Step>("foto");
   const [placeId, setPlaceId] = useState("");
+  const [department, setDepartment] = useState("");
+  const [municipalityQuery, setMunicipalityQuery] = useState("");
   const [geoNote, setGeoNote] = useState<string | null>(null);
   const [photo, setPhoto] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -91,7 +99,10 @@ export function HomeFlow() {
     }
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        setPlaceId(nearestPlace(position.coords.latitude, position.coords.longitude).id);
+        const nearest = nearestPlace(position.coords.latitude, position.coords.longitude);
+        setPlaceId(nearest.id);
+        setDepartment(nearest.department);
+        setMunicipalityQuery("");
         setGeoNote(null);
       },
       () => setGeoNote(GEO_DENIED_COPY),
@@ -206,7 +217,23 @@ export function HomeFlow() {
           ready={Boolean(photo && placeId)}
           cameraRef={cameraRef}
           uploadRef={uploadRef}
-          onPlace={setPlaceId}
+          department={department}
+          municipalityQuery={municipalityQuery}
+          onDepartment={(value) => {
+            setDepartment(value);
+            setMunicipalityQuery("");
+            const current = placeById(placeId);
+            if (current && current.department !== value) setPlaceId("");
+          }}
+          onMunicipalityQuery={(value) => {
+            setMunicipalityQuery(value);
+            const visible = filterPlacesByName(placesInDepartment(department), value);
+            if (placeId && !visible.some((item) => item.id === placeId)) setPlaceId("");
+          }}
+          onPlace={(id) => {
+            setPlaceId(id);
+            setMunicipalityQuery("");
+          }}
           onLocate={useMyLocation}
           onFile={(file) => void takePhoto(file)}
           onReview={() => void review()}
@@ -301,6 +328,8 @@ export function HomeFlow() {
 
 function FotoStep({
   placeId,
+  department,
+  municipalityQuery,
   geoNote,
   preview,
   diagnosing,
@@ -308,12 +337,16 @@ function FotoStep({
   ready,
   cameraRef,
   uploadRef,
+  onDepartment,
+  onMunicipalityQuery,
   onPlace,
   onLocate,
   onFile,
   onReview,
 }: {
   placeId: string;
+  department: string;
+  municipalityQuery: string;
   geoNote: string | null;
   preview: string | null;
   diagnosing: boolean;
@@ -321,11 +354,16 @@ function FotoStep({
   ready: boolean;
   cameraRef: RefObject<HTMLInputElement | null>;
   uploadRef: RefObject<HTMLInputElement | null>;
+  onDepartment: (department: string) => void;
+  onMunicipalityQuery: (query: string) => void;
   onPlace: (id: string) => void;
   onLocate: () => void;
   onFile: (file: File | undefined) => void;
   onReview: () => void;
 }) {
+  const matches = filterPlacesByName(placesInDepartment(department), municipalityQuery);
+  const municipalityValue = matches.some((place) => place.id === placeId) ? placeId : "";
+
   return (
     <>
       <h1 className="text-2xl font-semibold tracking-tight">
@@ -361,22 +399,59 @@ function FotoStep({
       <button type="button" className={secondary} onClick={() => uploadRef.current?.click()}>
         Subir foto
       </button>
-      <label className="flex min-h-12 items-center font-semibold" htmlFor="municipio">
-        ¿Dónde está su finca?
-      </label>
-      <select
-        id="municipio"
-        className="min-h-14 w-full rounded-2xl bg-white px-3 text-lg"
-        value={placeId}
-        onChange={(event) => onPlace(event.target.value)}
-      >
-        <option value="">Elija su municipio</option>
-        {DEPARTMENTS.map((item) => (
-          <option key={item.id} value={item.id}>
-            {item.name}
-          </option>
-        ))}
-      </select>
+      <div className="flex flex-col gap-3">
+        <p className="text-lg font-semibold">¿Dónde está su finca?</p>
+        <label className="text-lg font-semibold" htmlFor="departamento">
+          Departamento
+        </label>
+        <select
+          id="departamento"
+          className="min-h-14 w-full rounded-2xl bg-white px-3 text-lg"
+          value={department}
+          onChange={(event) => onDepartment(event.target.value)}
+        >
+          <option value="">Elija su departamento</option>
+          {departmentNames().map((name) => (
+            <option key={name} value={name}>
+              {name}
+            </option>
+          ))}
+        </select>
+        <label className="text-lg font-semibold" htmlFor="buscar-municipio">
+          Buscar municipio
+        </label>
+        <input
+          id="buscar-municipio"
+          className="min-h-14 w-full rounded-2xl bg-white px-3 text-lg disabled:opacity-60"
+          type="search"
+          enterKeyHint="search"
+          autoComplete="off"
+          placeholder="Escriba para filtrar"
+          value={municipalityQuery}
+          disabled={department === ""}
+          onChange={(event) => onMunicipalityQuery(event.target.value)}
+        />
+        <label className="text-lg font-semibold" htmlFor="municipio">
+          Municipio
+        </label>
+        <select
+          id="municipio"
+          className="min-h-14 w-full rounded-2xl bg-white px-3 text-lg disabled:opacity-60"
+          value={municipalityValue}
+          disabled={department === ""}
+          onChange={(event) => onPlace(event.target.value)}
+        >
+          <option value="">Elija su municipio</option>
+          {matches.map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.name}
+            </option>
+          ))}
+        </select>
+        {department !== "" && municipalityQuery.trim() !== "" && matches.length === 0 ? (
+          <p role="status">Ningún municipio con ese nombre.</p>
+        ) : null}
+      </div>
       <button type="button" className={secondary} onClick={onLocate}>
         Usar mi ubicación
       </button>
