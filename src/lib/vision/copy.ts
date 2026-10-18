@@ -66,7 +66,7 @@ export const UNSURE_DETAIL =
   "No le damos un plan para no aconsejarle mal. Envíe el resultado a su agrónomo o cooperativa.";
 
 export const CONTACTS_PENDING =
-  "Contactos PROCAFE / CENTA: pendiente de verificar";
+  "Contactos ISC / CENTA: pendiente de verificar";
 
 export const CONFIRM_AGRONOMIST = "Confirme con un agrónomo";
 

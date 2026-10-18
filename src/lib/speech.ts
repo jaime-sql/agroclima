@@ -8,13 +8,14 @@ export const LISTEN_COPY = {
   failed: "No pudimos leer en voz alta.",
 } as const;
 
-/** Result, then the plan, then the week, then the orientation sentence. */
+/** Result, then the plan, then the week, then Qué hacer hoy when it is on screen, then the orientation sentence. */
 export function listenScript(parts: {
   result?: string | null;
   plan?: string | null;
   week?: string | null;
+  advice?: string | null;
 }): string {
-  const body = [parts.result, parts.plan, parts.week]
+  const body = [parts.result, parts.plan, parts.week, parts.advice]
     .map((part) => part?.trim() ?? "")
     .filter(Boolean);
   if (body.length === 0) return "";

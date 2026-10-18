@@ -92,7 +92,7 @@ The GPS country check uses `src/data/el-salvador-boundary.json`: Natural Earth 1
 
 ## Limits of the municipality list and its forecasts
 
-Coordinates are municipality town centres, not farms (the three original points are hand-picked coffee-slope points). Open-Meteo answers from a model grid, so its reply point can sit up to about 9 km from the place, and some places share a strip: Juayúa and Salcoatitán are identical; Jayaque, Talnique and Tepecoyo share one cell; so do Ataco with the Ahuachapán point and La Palma with the Chalatenango point. These differ only through the temperature and humidity downscale. Temperature follows the elevation of the point itself (about −0.6 °C per 100 m across the 20 places), so for a town centre it describes that elevation, not the farm's. Coffee evidence is the Instituto Salvadoreño del Café coffee-zone listing; weak rows kept: Talnique, Tepecoyo, San Fernando (Morazán), and Perquín and Salcoatitán (thin beyond ISC). Risk thresholds are unchanged pending a PROCAFÉ or agronomist check. Over Oct 2025–Oct 2026, alto covered 13–46% of dry-season days (Dec–Apr, median 31%) and 64–90% of rainy-season days.
+Coordinates are municipality town centres, not farms (the three original points are hand-picked coffee-slope points). Open-Meteo answers from a model grid, so its reply point can sit up to about 9 km from the place, and some places share a strip: Juayúa and Salcoatitán are identical; Jayaque, Talnique and Tepecoyo share one cell; so do Ataco with the Ahuachapán point and La Palma with the Chalatenango point. These differ only through the temperature and humidity downscale. Temperature follows the elevation of the point itself (about −0.6 °C per 100 m across the 20 places), so for a town centre it describes that elevation, not the farm's. Coffee evidence is the Instituto Salvadoreño del Café coffee-zone listing; weak rows kept: Talnique, Tepecoyo, San Fernando (Morazán), and Perquín and Salcoatitán (thin beyond ISC). Risk thresholds are unchanged pending ISC, CENTA or agronomist validation. Over Oct 2025–Oct 2026, alto covered 13–46% of dry-season days (Dec–Apr, median 31%) and 64–90% of rainy-season days.
 
 ## Known limitations
 
@@ -100,6 +100,6 @@ The place points in `src/data/locations.json` are a municipality centre or one o
 
 ## Riesgo del clima
 
-Estos umbrales de riesgo son una estimación nuestra y no han sido validados por PROCAFE ni por el MAG.
+Estos umbrales de riesgo son una estimación nuestra y no han sido validados por el ISC, CENTA ni el MAG.
 
 The weather rules and their citations are in `docs/rust-risk-rules.md`. The plan names a fungicide class and says "dosis según etiqueta / su agrónomo". It does not give a numeric dose.

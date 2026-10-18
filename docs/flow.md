@@ -47,12 +47,12 @@ El % se muestra pequeño junto a la palabra.
 | otra | «No pudimos revisar esta foto.» | «Tome la foto de día, con buena luz y sin sol directo. Una sola hoja, de cerca.» |
 - Botón: «Tome otra foto»
 
-**e) No estamos seguros** (`02e`): «No seguro · NN %». «No le damos un plan para no aconsejarle mal. Envíe el resultado a su agrónomo o cooperativa.» Botones: «Compartir con mi agrónomo», «Tome otra foto». Tarjeta gris «Contactos PROCAFE / CENTA: pendiente de verificar». **Sin plan.**
+**e) No estamos seguros** (`02e`): «No seguro · NN %». «No le damos un plan para no aconsejarle mal. Envíe el resultado a su agrónomo o cooperativa.» Botones: «Compartir con mi agrónomo», «Tome otra foto». Tarjeta gris «Contactos ISC / CENTA: pendiente de verificar». **Sin plan.**
 
 ### «Compartir con mi agrónomo» (antes «Consulte a un agrónomo»)
 - Acción principal: abre WhatsApp (`https://wa.me/?text=`) con el resultado, la fecha de la foto y el departamento, para que el caficultor lo reenvíe a su agrónomo o cooperativa. Ejemplo de texto: «AgroClima: Parece roya (Probable). Foto del 12/10/2026. Departamento: Santa Ana. Es una orientación, no un diagnóstico.» (ejemplo)
 - La foto no se adjunta automáticamente, porque `wa.me` solo envía texto. Ver la pregunta abierta.
-- Contactos PROCAFE/CENTA: se muestran solo cuando el Data Engineer los verifique. Mientras tanto aparece el marcador «pendiente de verificar».
+- Contactos ISC/CENTA: se muestran solo cuando el Data Engineer los verifique. Mientras tanto aparece el marcador «pendiente de verificar».
 
 ## 3/5 Riesgo 7 días
 - Título: «Riesgo de roya esta semana» · «<Municipio> · toque un día»

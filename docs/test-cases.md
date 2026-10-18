@@ -31,7 +31,7 @@ Expected: `assessForecast()` returns a weekly level (alto / medio / bajo) with o
 
 ## TC-04 Risk footer caveat
 Steps: view any risk result.
-Expected: footer shows exactly `RISK_CUTOFF_FOOTER`: "Estos umbrales de riesgo son una estimación nuestra y no han sido validados por PROCAFE ni por el MAG." The risk screen renders that sentence.
+Expected: footer shows exactly `RISK_CUTOFF_FOOTER`: "Estos umbrales de riesgo son una estimación nuestra y no han sido validados por el ISC, CENTA ni el MAG." The risk screen renders that sentence.
 
 ## TC-05 Fungicide class only, no doses
 Steps: view the action plan from `buildPlan()`.

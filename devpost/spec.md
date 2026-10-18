@@ -90,7 +90,7 @@ Server route. Builds an OpenAI-compatible chat request with the image, parses th
 PRD ref: `prd.md > Diagnóstico`.
 
 ### Motor de riesgo
-`src/lib/risk`. Pure functions over parsed Open-Meteo hours and days. No network inside this module. Daily level is bajo, medio, or alto from `docs/rust-risk-rules.md`, with one Spanish reason. A dry day is bajo. The footer says the cutoffs are our estimate and are not validated by PROCAFE or MAG.
+`src/lib/risk`. Pure functions over parsed Open-Meteo hours and days. No network inside this module. Daily level is bajo, medio, or alto from `docs/rust-risk-rules.md`, with one Spanish reason. A dry day is bajo. The footer says the cutoffs are our estimate and are not validated by the ISC, CENTA or MAG.
 PRD ref: `prd.md > Riesgo de la semana`.
 
 ### Pronóstico
@@ -208,7 +208,7 @@ Anything other than that JSON, or any HTTP error from the vendor, becomes `retom
 ### Cloudflare Workers
 Hosting. Docs: https://developers.cloudflare.com/workers/. Secrets for deploy are `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` in GitHub Actions, and the same token for a local `wrangler deploy`. Worker observability: logs and traces enabled in `wrangler.jsonc`.
 
-The scoring rules and citations are `docs/rust-risk-rules.md`. Open-Meteo does not return leaf wetness. A wet hour is relative humidity at or above 90%, or precipitation of at least 0.1 mm. The footer on the assessment says these cutoffs are our estimate and have not been validated by PROCAFE or MAG.
+The scoring rules and citations are `docs/rust-risk-rules.md`. Open-Meteo does not return leaf wetness. A wet hour is relative humidity at or above 90%, or precipitation of at least 0.1 mm. The footer on the assessment says these cutoffs are our estimate and have not been validated by the ISC, CENTA or MAG.
 
 ## Important Failure Modes
 

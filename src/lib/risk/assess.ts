@@ -27,9 +27,9 @@ export const REASON_BAJO_LLUVIA =
 export const REASON_SIN_DATOS = "«sin datos»";
 export const FORECAST_UNAVAILABLE = "«pronóstico no disponible»";
 
-/** Risk bins are our estimate. Not validated by PROCAFE or MAG. */
+/** Risk bins are our estimate. Not validated by the ISC, CENTA, or MAG. */
 export const RISK_CUTOFF_FOOTER =
-  "Estos umbrales de riesgo son una estimación nuestra y no han sido validados por PROCAFE ni por el MAG.";
+  "Estos umbrales de riesgo son una estimación nuestra y no han sido validados por el ISC, CENTA ni el MAG.";
 
 export const DOSE_NOTE = "dosis según etiqueta / su agrónomo";
 

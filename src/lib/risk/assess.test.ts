@@ -532,7 +532,7 @@ describe("coffee rust risk rules", () => {
     assert.doesNotMatch(text, /\d/);
     assert.equal(
       result.footer,
-      "Estos umbrales de riesgo son una estimación nuestra y no han sido validados por PROCAFE ni por el MAG.",
+      "Estos umbrales de riesgo son una estimación nuestra y no han sido validados por el ISC, CENTA ni el MAG.",
     );
     assert.equal(result.footer, RISK_CUTOFF_FOOTER);
   });
