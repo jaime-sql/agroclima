@@ -77,7 +77,6 @@ export function HomeFlow() {
   const [gpsView, setGpsView] = useState<GpsScreen | null>(null);
   const [gpsRisk, setGpsRisk] = useState<RiskView | null>(null);
   const [gpsState, setGpsState] = useState<"idle" | "loading" | "failed">("idle");
-  const [selection, setSelection] = useState<"pin" | "municipality" | null>(null);
   const [pinCard, setPinCard] = useState<MapPinSummary | null>(null);
 
   useEffect(() => {
@@ -128,7 +127,6 @@ export function HomeFlow() {
         if (early.kind === "outside") {
           setGpsView(early);
           setGpsState("idle");
-          setSelection(null);
           return;
         }
         void loadGps(latitude, longitude);
@@ -153,7 +151,6 @@ export function HomeFlow() {
         if (!payload.ok && payload.error === "outside_el_salvador") {
           setGpsView(gpsScreen({ latitude, longitude, elevationM: null, places: PLACES }));
           setGpsState("idle");
-          setSelection(null);
           return;
         }
         setGpsState("failed");
@@ -169,7 +166,6 @@ export function HomeFlow() {
       );
       setGpsRisk(payload);
       setGpsState("idle");
-      setSelection(null);
     } catch {
       setGpsState("failed");
     }
@@ -300,7 +296,6 @@ export function HomeFlow() {
             const current = placeById(placeId);
             if (current && current.department !== value) {
               setPlaceId("");
-              setSelection(null);
               setPinCard(null);
               setRisk(null);
             }
@@ -310,14 +305,12 @@ export function HomeFlow() {
             const visible = filterPlacesByName(placesInDepartment(department), value);
             if (placeId && !visible.some((item) => item.id === placeId)) {
               setPlaceId("");
-              setSelection(null);
               setPinCard(null);
             }
           }}
           onPlace={(id) => {
             setPlaceId(id);
             setMunicipalityQuery("");
-            setSelection("municipality");
             setPinCard(null);
             clearGps();
             void loadRisk(id);
@@ -328,7 +321,6 @@ export function HomeFlow() {
             setPlaceId(id);
             setDepartment(chosen.department);
             setMunicipalityQuery("");
-            setSelection("pin");
             setPinCard(pin);
             clearGps();
             void loadRisk(id);
