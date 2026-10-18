@@ -5,6 +5,7 @@ import { shouldKeepAudioCache, wranglerConfigForDeploy } from "./audio-cache-bin
 
 const R2_DISABLED =
   "Please enable R2 through the Cloudflare Dashboard [code: 10042]";
+const BLAXEL_ASK_URL = "https://run.blaxel.ai/hackatonhf2025/agents/agroclima-ask";
 
 describe("audio cache binding", () => {
   it("keeps AUDIO_CACHE when the bucket is created or already exists", () => {
@@ -17,6 +18,7 @@ describe("audio cache binding", () => {
       config,
     );
     assert.match(config, /AUDIO_CACHE/);
+    assert.match(config, new RegExp(BLAXEL_ASK_URL.replaceAll(".", "\\.")));
   });
 
   it("drops AUDIO_CACHE on 10042 and on any other create error", () => {
@@ -27,11 +29,15 @@ describe("audio cache binding", () => {
         name: string;
         r2_buckets?: Array<{ binding: string }>;
         services: unknown[];
+        vars?: { BLAXEL_ASK_URL?: string };
       };
       assert.equal(parsed.name, "agroclima");
       assert.equal(parsed.r2_buckets, undefined);
       assert.equal(Array.isArray(parsed.services), true);
-      assert.equal(JSON.stringify(parsed).includes("AUDIO_CACHE"), false);
+      assert.equal(parsed.vars?.BLAXEL_ASK_URL, BLAXEL_ASK_URL);
+      const serialized = JSON.stringify(parsed);
+      assert.equal(serialized.includes("AUDIO_CACHE"), false);
+      assert.equal(serialized.includes("API_KEY"), false);
     }
   });
 
@@ -42,10 +48,13 @@ describe("audio cache binding", () => {
         { binding: "AUDIO_CACHE", bucket_name: "agroclima-audio" },
         { binding: "OTHER", bucket_name: "other" },
       ],
+      vars: { BLAXEL_ASK_URL },
     });
     const parsed = JSON.parse(wranglerConfigForDeploy(config, 1, R2_DISABLED)) as {
       r2_buckets: Array<{ binding: string }>;
+      vars: { BLAXEL_ASK_URL: string };
     };
     assert.deepEqual(parsed.r2_buckets, [{ binding: "OTHER", bucket_name: "other" }]);
+    assert.equal(parsed.vars.BLAXEL_ASK_URL, BLAXEL_ASK_URL);
   });
 });

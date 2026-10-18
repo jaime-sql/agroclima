@@ -17,7 +17,7 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000. The page is in Spanish: take or upload a leaf photo, pick Santa Ana, Ahuachapán, or Chalatenango (or use the phone location), then review the leaf. `GET /api/health` returns `{ "ok": true, "sha": "dev" }` locally, and the deployed short commit SHA after a deploy build. `GET /api/risk?place=santa-ana` returns the 7-day rust risk. `POST /api/diagnose` returns `{ "ok": false, "error": "unavailable" }` until the Worker secret `OPENAI_API_KEY` is set (`VISION_MODEL` defaults to `gpt-4.1-mini`). `POST /api/tts` stays unavailable until `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID` are set, and Escuchar then uses the phone voice. `POST /api/ask` answers from the plan screen. With Worker secrets `BLAXEL_ASK_URL` and `BLAXEL_API_KEY` it asks the Blaxel agent first. Without both of those, it calls OpenAI directly when `OPENAI_API_KEY` is set, and otherwise tells the farmer to ask an agronomist.
+Open http://localhost:3000. The page is in Spanish: take or upload a leaf photo, pick Santa Ana, Ahuachapán, or Chalatenango (or use the phone location), then review the leaf. `GET /api/health` returns `{ "ok": true, "sha": "dev" }` locally, and the deployed short commit SHA after a deploy build. `GET /api/risk?place=santa-ana` returns the 7-day rust risk. `POST /api/diagnose` returns `{ "ok": false, "error": "unavailable" }` until the Worker secret `OPENAI_API_KEY` is set (`VISION_MODEL` defaults to `gpt-4.1-mini`). `POST /api/tts` stays unavailable until `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID` are set, and Escuchar then uses the phone voice. `POST /api/ask` answers from the plan screen. With `BLAXEL_ASK_URL` from `wrangler.jsonc` and the Worker secret `BLAXEL_API_KEY` it asks the Blaxel agent first. Without both of those, it calls OpenAI directly when `OPENAI_API_KEY` is set, and otherwise tells the farmer to ask an agronomist.
 
 ```bash
 npm run lint
@@ -35,7 +35,7 @@ Escuchar stores audio in the R2 bucket `agroclima-audio` (binding `AUDIO_CACHE` 
 npx wrangler r2 bucket create agroclima-audio
 ```
 
-The deploy workflow runs that create. A successful create, or a reply that the bucket already exists, keeps the `AUDIO_CACHE` binding. If R2 is not enabled (`code: 10042`) or the create fails for any other reason, that step still succeeds and removes the binding from the deploy config. `wrangler deploy` then publishes the Worker, and Escuchar plays without a cache. The binding stays in the committed `wrangler.jsonc` for an account where R2 is enabled.
+The deploy workflow runs that create. A successful create, or a reply that the bucket already exists, keeps the `AUDIO_CACHE` binding and does not rewrite `wrangler.jsonc`. If R2 is not enabled (`code: 10042`) or the create fails for any other reason, that step still succeeds and removes only the `AUDIO_CACHE` binding from the deploy config. The `vars` block, including `BLAXEL_ASK_URL`, stays. `npm run build:cloudflare` reads `wrangler.jsonc` and does not rewrite it. `wrangler deploy --no-autoconfig` then publishes the Worker, and Escuchar plays without a cache. The binding stays in the committed `wrangler.jsonc` for an account where R2 is enabled.
 
 ## Hosting
 
@@ -57,7 +57,7 @@ Set `OPENAI_API_KEY` in the environment, then:
 
 `VISION_MODEL` defaults to `gpt-4.1-mini`. `VISION_API_BASE_URL` defaults to `https://api.openai.com/v1`. Do not put the key in `blaxel.toml`. Local `npm start` and `npm run dev` in `blaxel/ask-agent` use `tsx` and bind `HOST` and `PORT`.
 
-On the Worker, set secrets `BLAXEL_ASK_URL` (`https://run.blaxel.ai/hackatonhf2025/agents/agroclima-ask`) and `BLAXEL_API_KEY`. The live agent endpoint is `POST https://run.blaxel.ai/hackatonhf2025/agents/agroclima-ask` with headers `X-Blaxel-Authorization: Bearer <token>` and `X-Blaxel-Workspace: hackatonhf2025`, and body `{ "question", "grounding" }`. The call times out after 8 seconds. A timeout, a network error, or any non-200 falls back to the Worker's direct OpenAI call. If either secret is missing, that direct call is the only path. The response header `X-Agroclima-Backend` is `blaxel` or `direct`.
+On the Worker, `BLAXEL_ASK_URL` lives in `wrangler.jsonc` as a plain var (`https://run.blaxel.ai/hackatonhf2025/agents/agroclima-ask`). It is a URL, not a secret. `BLAXEL_API_KEY` and `OPENAI_API_KEY` are Worker secrets set in the Cloudflare dashboard. The live agent endpoint is `POST https://run.blaxel.ai/hackatonhf2025/agents/agroclima-ask` with headers `X-Blaxel-Authorization: Bearer <token>` and `X-Blaxel-Workspace: hackatonhf2025`, and body `{ "question", "grounding" }`. The call times out after 8 seconds. A timeout, a network error, or any non-200 falls back to the Worker's direct OpenAI call. If the var or `BLAXEL_API_KEY` is missing, that direct call is the only path. The response header `X-Agroclima-Backend` is `blaxel` or `direct`.
 
 ```bash
 curl -sS -X POST "https://run.blaxel.ai/hackatonhf2025/agents/agroclima-ask" -H "Content-Type: application/json" -H "X-Blaxel-Authorization: Bearer <token>" -H "X-Blaxel-Workspace: hackatonhf2025" -d '{"question":"¿Qué significa Probable?","grounding":{"place":"Zona cafetalera de Santa Ana","timezone":"America/El_Salvador","days":[],"diagnosis":null}}'

@@ -20,6 +20,9 @@
       "bucket_name": "agroclima-audio"
     }
   ],
+  "vars": {
+    "BLAXEL_ASK_URL": "https://run.blaxel.ai/hackatonhf2025/agents/agroclima-ask"
+  },
   "observability": {
     "enabled": true,
     "logs": {
