@@ -15,25 +15,41 @@ const FORECAST_ENDPOINT = "https://api.open-meteo.com/v1/forecast";
  * `elevation` is left unset so Open-Meteo uses its default DEM
  * downscale. R7 has no altitude band of our own.
  */
+const FORECAST_FIELDS = {
+  timezone: "America/El_Salvador",
+  forecast_days: "7",
+  hourly: [
+    "temperature_2m",
+    "relative_humidity_2m",
+    "precipitation",
+    "precipitation_probability",
+  ].join(","),
+  daily: [
+    "temperature_2m_max",
+    "temperature_2m_min",
+    "precipitation_sum",
+    "precipitation_hours",
+    "precipitation_probability_max",
+  ].join(","),
+} as const;
+
 export function forecastUrl(latitude: number, longitude: number): string {
   const params = new URLSearchParams({
     latitude: String(latitude),
     longitude: String(longitude),
-    timezone: "America/El_Salvador",
-    forecast_days: "7",
-    hourly: [
-      "temperature_2m",
-      "relative_humidity_2m",
-      "precipitation",
-      "precipitation_probability",
-    ].join(","),
-    daily: [
-      "temperature_2m_max",
-      "temperature_2m_min",
-      "precipitation_sum",
-      "precipitation_hours",
-      "precipitation_probability_max",
-    ].join(","),
+    ...FORECAST_FIELDS,
+  });
+  return `${FORECAST_ENDPOINT}?${params.toString()}`;
+}
+
+/** One Open-Meteo request for every listed place. Coordinates stay in this URL only. */
+export function placesForecastUrl(
+  places: readonly { latitude: number; longitude: number }[],
+): string {
+  const params = new URLSearchParams({
+    latitude: places.map((place) => String(place.latitude)).join(","),
+    longitude: places.map((place) => String(place.longitude)).join(","),
+    ...FORECAST_FIELDS,
   });
   return `${FORECAST_ENDPOINT}?${params.toString()}`;
 }

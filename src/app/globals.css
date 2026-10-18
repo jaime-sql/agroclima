@@ -26,3 +26,14 @@
     line-height: 1.25;
   }
 }
+
+.leaflet-container {
+  height: 100%;
+  width: 100%;
+  z-index: 0;
+}
+
+.agroclima-pin {
+  background: transparent;
+  border: 0;
+}

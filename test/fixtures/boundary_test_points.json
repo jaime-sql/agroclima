@@ -1,0 +1,145 @@
+[
+ {
+  "id": "inside_san_salvador",
+  "lat": 13.69,
+  "lon": -89.19,
+  "expected_inside": true,
+  "group": "core",
+  "description": "clearly inside",
+  "result_simplified": true,
+  "result_original_ne": true,
+  "pass": true
+ },
+ {
+  "id": "inside_santa_ana_volcano",
+  "lat": 13.85,
+  "lon": -89.63,
+  "expected_inside": true,
+  "group": "core",
+  "description": "clearly inside",
+  "result_simplified": true,
+  "result_original_ne": true,
+  "pass": true
+ },
+ {
+  "id": "inside_san_miguel",
+  "lat": 13.48,
+  "lon": -88.18,
+  "expected_inside": true,
+  "group": "core",
+  "description": "clearly inside",
+  "result_simplified": true,
+  "result_original_ne": true,
+  "pass": true
+ },
+ {
+  "id": "pacific_1",
+  "lat": 13.0,
+  "lon": -89.5,
+  "expected_inside": false,
+  "group": "core",
+  "description": "Pacific, ~55 km offshore",
+  "result_simplified": false,
+  "result_original_ne": false,
+  "pass": true
+ },
+ {
+  "id": "pacific_2",
+  "lat": 13.1,
+  "lon": -88.0,
+  "expected_inside": false,
+  "group": "core",
+  "description": "Pacific/Gulf of Fonseca mouth, offshore",
+  "result_simplified": false,
+  "result_original_ne": false,
+  "pass": true
+ },
+ {
+  "id": "pacific_3",
+  "lat": 12.8,
+  "lon": -88.9,
+  "expected_inside": false,
+  "group": "core",
+  "description": "Pacific, ~90 km offshore",
+  "result_simplified": false,
+  "result_original_ne": false,
+  "pass": true
+ },
+ {
+  "id": "honduras_1",
+  "lat": 14.6,
+  "lon": -88.0,
+  "expected_inside": false,
+  "group": "core",
+  "description": "Honduras, well north of border",
+  "result_simplified": false,
+  "result_original_ne": false,
+  "pass": true
+ },
+ {
+  "id": "honduras_2",
+  "lat": 14.1,
+  "lon": -87.5,
+  "expected_inside": false,
+  "group": "core",
+  "description": "Honduras (Tegucigalpa area), east of border",
+  "result_simplified": false,
+  "result_original_ne": false,
+  "pass": true
+ },
+ {
+  "id": "guatemala_1",
+  "lat": 14.2,
+  "lon": -90.0,
+  "expected_inside": false,
+  "group": "core",
+  "description": "Guatemala, west of border",
+  "result_simplified": false,
+  "result_original_ne": false,
+  "pass": true
+ },
+ {
+  "id": "edge_coast_3km_inland",
+  "lat": 13.51519,
+  "lon": -89.31627,
+  "expected_inside": true,
+  "group": "edge",
+  "description": "~3 km inland (normal to NE coast) from La Libertad coast",
+  "result_simplified": true,
+  "result_original_ne": true,
+  "pass": true
+ },
+ {
+  "id": "edge_coast_3km_offshore",
+  "lat": 13.46232,
+  "lon": -89.32852,
+  "expected_inside": false,
+  "group": "edge",
+  "description": "~3 km offshore (normal to NE coast) from La Libertad coast",
+  "result_simplified": false,
+  "result_original_ne": false,
+  "pass": true
+ },
+ {
+  "id": "edge_border_3km_inside",
+  "lat": 13.95992,
+  "lon": -88.15999,
+  "expected_inside": true,
+  "group": "edge",
+  "description": "~3 km inside the Honduras border near Perquin (normal to NE border)",
+  "result_simplified": true,
+  "result_original_ne": true,
+  "pass": true
+ },
+ {
+  "id": "edge_border_3km_outside",
+  "lat": 14.01382,
+  "lon": -88.16627,
+  "expected_inside": false,
+  "group": "edge",
+  "description": "~3 km inside Honduras beyond the border near Perquin (normal to NE border)",
+  "result_simplified": false,
+  "result_original_ne": false,
+  "pass": true
+ }
+]

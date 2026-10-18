@@ -20,6 +20,8 @@ export type OpenMeteoDaily = {
 
 export type OpenMeteoForecast = {
   timezone?: string;
+  /** Metres from the Open-Meteo reply. Not used by the risk score. */
+  elevation?: number;
   hourly?: OpenMeteoHourly;
   daily?: OpenMeteoDaily;
 };

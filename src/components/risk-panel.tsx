@@ -31,12 +31,14 @@ export function RiskPanel({
   failed,
   showPlan,
   onRetry,
+  subtitle,
 }: {
   risk: RiskView | null;
   loading: boolean;
   failed: boolean;
   showPlan: boolean;
   onRetry?: () => void;
+  subtitle?: string;
 }) {
   const [selected, setSelected] = useState(0);
   const days = risk?.days ?? [];
@@ -48,7 +50,7 @@ export function RiskPanel({
         <h2 className="text-2xl font-semibold tracking-tight">Riesgo de roya esta semana</h2>
         {failed && !risk ? null : (
           <p className="mt-1">
-            {risk ? riskStripSubtitle(risk.place.name) : "Toque un día"}
+            {risk ? (subtitle ?? riskStripSubtitle(risk.place.name)) : "Toque un día"}
           </p>
         )}
       </div>
