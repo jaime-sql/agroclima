@@ -25,3 +25,15 @@ Decision: The risk footer is now «Estos umbrales de riesgo son una estimación 
 Reason: The constant, its test, and `docs/test-cases.md` use that same sentence. Unverified contact rows were removed rather than renamed. Limits wording in the README and in the 2026-10-17 entry says ISC, CENTA or agronomist validation.
 
 Date: 2026-10-18
+
+## 2026-10-18 — Connection drops
+
+Decision: Three gaps in the ask path are confirmed and closed. The OpenAI fallback had no abort, so a hung call could leave no response. The route had no handler-level catch. A forced Blaxel failure omitted the `X-Agroclima-Backend` header. The logs and headers will show what happens next.
+
+### Unconfirmed
+
+- Free-plan CPU error 1102.
+- An OpenNext streaming wrapper issue.
+- Whether the 2 observed drops were a Blaxel reset or a hung OpenAI fallback. No production logs exist for them.
+
+Date: 2026-10-18
