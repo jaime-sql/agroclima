@@ -15,7 +15,7 @@ import {
   riskStripSubtitle,
   showsActionPlan,
 } from "./copy.ts";
-import { DEPARTMENTS } from "../places.ts";
+import { PLACES } from "../places.ts";
 import { DEFAULT_OPENAI_MODEL } from "../openai.ts";
 import { diagnoseImage, interpretDiagnosis, parseModelPayload } from "./diagnose.ts";
 
@@ -51,10 +51,10 @@ describe("diagnosis", () => {
   });
 
   it("names the nearby coffee zone and keeps the three picker labels", () => {
-    assert.deepEqual(
-      DEPARTMENTS.map((place) => place.name),
-      ["Santa Ana", "Ahuachapán", "Chalatenango"],
-    );
+    const names = PLACES.map((place) => place.name);
+    for (const name of ["Santa Ana", "Ahuachapán", "Chalatenango"]) {
+      assert.equal(names.includes(name), true, name);
+    }
     assert.equal(
       riskStripSubtitle("Santa Ana"),
       "Zona cafetalera de Santa Ana · toque un día",

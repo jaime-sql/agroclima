@@ -11,6 +11,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "node --experimental-strip-types --test src/lib/risk/*.test.ts src/lib/weather/*.test.ts src/lib/vision/*.test.ts src/lib/*.test.ts blaxel/ask-agent/src/*.test.ts",
+    "check:locations": "node --experimental-strip-types scripts/check-locations.ts",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"

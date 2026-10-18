@@ -1,0 +1,137 @@
+[
+  {
+    "id": "ahuachapan",
+    "name": "Ahuachapán",
+    "department": "Ahuachapán",
+    "lat": 13.963,
+    "lon": -89.87,
+    "elevation_m": 716,
+    "source": "Open Admin Data SV01001001 (https://openadmindata.org/api/v1/sv/municipality.json); elevation Open-Meteo DEM"
+  },
+  {
+    "id": "apaneca",
+    "name": "Apaneca",
+    "department": "Ahuachapán",
+    "lat": 13.848,
+    "lon": -89.79,
+    "elevation_m": 1391,
+    "source": "Open Admin Data SV01001002 (https://openadmindata.org/api/v1/sv/municipality.json); elevation Open-Meteo DEM"
+  },
+  {
+    "id": "atiquizaya",
+    "name": "Atiquizaya",
+    "department": "Ahuachapán",
+    "lat": 13.956,
+    "lon": -89.731,
+    "elevation_m": 759,
+    "source": "Open Admin Data SV01002001 (https://openadmindata.org/api/v1/sv/municipality.json); elevation Open-Meteo DEM"
+  },
+  {
+    "id": "chalatenango",
+    "name": "Chalatenango",
+    "department": "Chalatenango",
+    "lat": 14.042,
+    "lon": -88.937,
+    "elevation_m": 391,
+    "source": "Open Admin Data SV03003004 (https://openadmindata.org/api/v1/sv/municipality.json); elevation Open-Meteo DEM"
+  },
+  {
+    "id": "la-palma",
+    "name": "La Palma",
+    "department": "Chalatenango",
+    "lat": 14.296,
+    "lon": -89.177,
+    "elevation_m": 940,
+    "source": "Open Admin Data SV03002002 (https://openadmindata.org/api/v1/sv/municipality.json); elevation Open-Meteo DEM"
+  },
+  {
+    "id": "santa-tecla",
+    "name": "Santa Tecla",
+    "department": "La Libertad",
+    "lat": 13.627,
+    "lon": -89.3,
+    "elevation_m": 779,
+    "source": "Open Admin Data SV05006002 (https://openadmindata.org/api/v1/sv/municipality.json); elevation Open-Meteo DEM"
+  },
+  {
+    "id": "san-francisco-gotera",
+    "name": "San Francisco Gotera",
+    "department": "Morazán",
+    "lat": 13.67,
+    "lon": -88.083,
+    "elevation_m": 210,
+    "source": "Open Admin Data SV08002010 (https://openadmindata.org/api/v1/sv/municipality.json); elevation Open-Meteo DEM"
+  },
+  {
+    "id": "chinameca",
+    "name": "Chinameca",
+    "department": "San Miguel",
+    "lat": 13.474,
+    "lon": -88.331,
+    "elevation_m": 1181,
+    "source": "Open Admin Data SV09003001 (https://openadmindata.org/api/v1/sv/municipality.json); elevation Open-Meteo DEM"
+  },
+  {
+    "id": "ciudad-barrios",
+    "name": "Ciudad Barrios",
+    "department": "San Miguel",
+    "lat": 13.749,
+    "lon": -88.272,
+    "elevation_m": 867,
+    "source": "Open Admin Data SV09002003 (https://openadmindata.org/api/v1/sv/municipality.json); elevation Open-Meteo DEM"
+  },
+  {
+    "id": "san-vicente",
+    "name": "San Vicente",
+    "department": "San Vicente",
+    "lat": 13.556,
+    "lon": -88.726,
+    "elevation_m": 320,
+    "source": "Open Admin Data SV11002003 (https://openadmindata.org/api/v1/sv/municipality.json); elevation Open-Meteo DEM"
+  },
+  {
+    "id": "chalchuapa",
+    "name": "Chalchuapa",
+    "department": "Santa Ana",
+    "lat": 14.011,
+    "lon": -89.689,
+    "elevation_m": 689,
+    "source": "Open Admin Data SV12004002 (https://openadmindata.org/api/v1/sv/municipality.json); elevation Open-Meteo DEM"
+  },
+  {
+    "id": "metapan",
+    "name": "Metapán",
+    "department": "Santa Ana",
+    "lat": 14.31,
+    "lon": -89.402,
+    "elevation_m": 622,
+    "source": "Open Admin Data SV12003002 (https://openadmindata.org/api/v1/sv/municipality.json); elevation Open-Meteo DEM"
+  },
+  {
+    "id": "santa-ana",
+    "name": "Santa Ana",
+    "department": "Santa Ana",
+    "lat": 13.956,
+    "lon": -89.558,
+    "elevation_m": 757,
+    "source": "Open Admin Data SV12001001 (https://openadmindata.org/api/v1/sv/municipality.json); elevation Open-Meteo DEM"
+  },
+  {
+    "id": "juayua",
+    "name": "Juayúa",
+    "department": "Sonsonate",
+    "lat": 13.859,
+    "lon": -89.701,
+    "elevation_m": 1179,
+    "source": "Open Admin Data SV13003001 (https://openadmindata.org/api/v1/sv/municipality.json); elevation Open-Meteo DEM"
+  },
+  {
+    "id": "berlin",
+    "name": "Berlín",
+    "department": "Usulután",
+    "lat": 13.515,
+    "lon": -88.592,
+    "elevation_m": 375,
+    "source": "Open Admin Data SV14002002 (https://openadmindata.org/api/v1/sv/municipality.json); elevation Open-Meteo DEM"
+  }
+]

@@ -1,8 +1,6 @@
 import { assessForecast } from "../risk/assess.ts";
 import type { OpenMeteoForecast } from "../risk/types";
-import { DEPARTMENTS, type DepartmentId } from "../places.ts";
-
-export { DEPARTMENTS, type DepartmentId };
+import { placeById } from "../places.ts";
 
 export type LoadedForecast =
   | { ok: true; forecast: OpenMeteoForecast }
@@ -61,12 +59,12 @@ export async function fetchForecast(
 }
 
 export function fetchDepartmentForecast(
-  departmentId: DepartmentId,
+  placeId: string,
   fetchImpl?: typeof fetch,
 ): Promise<LoadedForecast> {
-  const department = DEPARTMENTS.find((item) => item.id === departmentId);
-  if (!department) {
+  const place = placeById(placeId);
+  if (!place) {
     return Promise.resolve({ ok: false, error: "forecast_unavailable" });
   }
-  return fetchForecast(department.latitude, department.longitude, fetchImpl);
+  return fetchForecast(place.latitude, place.longitude, fetchImpl);
 }
