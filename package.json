@@ -10,7 +10,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test src/lib/risk/*.test.ts src/lib/weather/*.test.ts src/lib/vision/*.test.ts src/lib/*.test.ts blaxel/ask-agent/src/*.test.ts",
+    "test": "node --experimental-strip-types --test src/lib/risk/*.test.ts src/lib/weather/*.test.ts src/lib/vision/*.test.ts src/lib/*.test.ts src/lib/map/*.test.ts blaxel/ask-agent/src/*.test.ts",
     "test:map": "playwright test",
     "check:locations": "node --experimental-strip-types scripts/check-locations.ts",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",

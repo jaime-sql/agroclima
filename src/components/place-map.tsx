@@ -1,6 +1,20 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import {
+  EMPTY_PIN_COLOR,
+  LEVEL_COLOR,
+  LEVEL_LETTER,
+  PIN_VISIBLE_PX,
+  TAP_PX,
+  clusterBubblePx,
+  clusterPlaces,
+  closestMetres,
+  pixelsForMetres,
+  shouldSpiderfy,
+  spiderfyOffsets,
+  worstLevel,
+} from "@/lib/map/cluster";
 import { PLACES } from "@/lib/places";
 import type { RiskLevel } from "@/lib/risk/types";
 import "leaflet/dist/leaflet.css";
@@ -11,23 +25,8 @@ export type MapPinSummary = {
   day: string | null;
 };
 
-const PIN_PX = 44;
-
-const PIN_COLOR: Record<RiskLevel, string> = {
-  alto: "#8A1C14",
-  medio: "#8A6A00",
-  bajo: "#1E5B2A",
-};
-
-const PIN_LETTER: Record<RiskLevel, string> = {
-  alto: "A",
-  medio: "M",
-  bajo: "B",
-};
-
-function escapeHtml(value: string): string {
-  return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
-}
+const PIN_COLOR: Record<RiskLevel, string> = LEVEL_COLOR;
+const PIN_LETTER: Record<RiskLevel, string> = LEVEL_LETTER;
 
 /** "San Fernando: alto, viernes". The card keeps the full level word and day name. */
 export function pinAriaLabel(name: string, level: RiskLevel | null, day: string | null): string {
@@ -37,23 +36,23 @@ export function pinAriaLabel(name: string, level: RiskLevel | null, day: string 
 
 function pinHtml(name: string, level: RiskLevel | null, day: string | null, highlighted: boolean): string {
   const letter = level ? PIN_LETTER[level] : "·";
-  const color = level ? PIN_COLOR[level] : "#57534e";
+  const color = level ? PIN_COLOR[level] : EMPTY_PIN_COLOR;
   const ring = highlighted ? "box-shadow:0 0 0 3px #111;" : "box-shadow:0 1px 2px rgba(0,0,0,.35);";
-  return `<span role="img" aria-label="${escapeHtml(pinAriaLabel(name, level, day))}" style="display:flex;width:${PIN_PX}px;height:${PIN_PX}px;box-sizing:border-box;align-items:center;justify-content:center;border-radius:999px;background:${color};color:#fff;font:700 18px/1 ui-sans-serif,system-ui,sans-serif;${ring}">${letter}</span>`;
+  return `<span aria-hidden="true" style="display:flex;width:${TAP_PX}px;height:${TAP_PX}px;align-items:center;justify-content:center;"><span style="display:flex;width:${PIN_VISIBLE_PX}px;height:${PIN_VISIBLE_PX}px;box-sizing:border-box;align-items:center;justify-content:center;border-radius:999px;background:${color};color:#fff;font:700 16px/1 ui-sans-serif,system-ui,sans-serif;${ring}">${letter}</span></span>`;
 }
 
-function pinIcon(
-  leaflet: typeof import("leaflet"),
-  name: string,
-  summary: MapPinSummary,
-  highlighted: boolean,
-) {
-  return leaflet.divIcon({
-    className: "leaflet-div-icon agroclima-pin",
-    html: pinHtml(name, summary.level, summary.day, highlighted),
-    iconSize: [PIN_PX, PIN_PX],
-    iconAnchor: [PIN_PX / 2, PIN_PX / 2],
-  });
+function clusterHtml(count: number, level: RiskLevel | null, highlighted: boolean): string {
+  const letter = level ? PIN_LETTER[level] : "·";
+  const color = level ? PIN_COLOR[level] : EMPTY_PIN_COLOR;
+  const size = clusterBubblePx(count);
+  const ring = highlighted ? "box-shadow:0 0 0 3px #111;" : "box-shadow:0 1px 2px rgba(0,0,0,.35);";
+  return `<span aria-hidden="true" style="display:flex;width:${size}px;height:${size}px;box-sizing:border-box;align-items:center;justify-content:center;border-radius:999px;background:${color};color:#fff;font:700 15px/1 ui-sans-serif,system-ui,sans-serif;letter-spacing:0.02em;${ring}">${count} ${letter}</span>`;
+}
+
+function clusterLabel(count: number, level: RiskLevel | null): string {
+  const noun = count === 1 ? "municipio" : "municipios";
+  if (!level) return `${count} ${noun}`;
+  return `${count} ${noun}, peor nivel ${level}`;
 }
 
 export function PlaceMap({
@@ -69,6 +68,7 @@ export function PlaceMap({
   const summaries = useRef(new Map<string, MapPinSummary>());
   const markers = useRef(new Map<string, import("leaflet").Marker>());
   const selectedRef = useRef<string | null>(null);
+  const drawRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     onPickRef.current = onPick;
@@ -76,6 +76,7 @@ export function PlaceMap({
 
   useEffect(() => {
     highlightRef.current = highlightId;
+    drawRef.current?.();
   }, [highlightId]);
 
   useEffect(() => {
@@ -84,9 +85,11 @@ export function PlaceMap({
     const markerMap = markers.current;
     let map: import("leaflet").Map | null = null;
     let cancelled = false;
+    let spiderIds: string[] = [];
 
     void import("leaflet").then((leaflet) => {
       if (cancelled || !element) return;
+      const hostEl = element;
       map = leaflet
         .map(element, {
           maxBounds: leaflet.latLngBounds([12.7, -90.6], [14.7, -87.2]),
@@ -95,7 +98,8 @@ export function PlaceMap({
           maxZoom: 16,
         })
         .setView([13.8, -88.9], 8);
-      const bounds = leaflet.latLngBounds(
+      (hostEl as HTMLDivElement & { mapView?: import("leaflet").Map }).mapView = map;
+      const country = leaflet.latLngBounds(
         PLACES.map((place) => [place.latitude, place.longitude] as [number, number]),
       );
       leaflet
@@ -105,89 +109,177 @@ export function PlaceMap({
           maxZoom: 16,
         })
         .addTo(map);
+      const layer = leaflet.layerGroup().addTo(map);
 
-      function paint(id: string) {
-        const marker = markers.current.get(id);
-        const summary = summaries.current.get(id);
-        const place = PLACES.find((item) => item.id === id);
-        if (!marker || !summary || !place) return;
-        const selected = selectedRef.current === id;
-        const highlighted = selected || highlightRef.current === id;
-        marker.setIcon(pinIcon(leaflet, place.name, summary, highlighted));
-        marker.setZIndexOffset(selected ? 2000 : highlighted ? 1000 : 0);
-        const icon = marker.getElement();
-        if (!icon) return;
-        icon.setAttribute("data-place-id", id);
-        icon.setAttribute("role", "button");
-        icon.setAttribute("aria-label", pinAriaLabel(place.name, summary.level, summary.day));
+      function placeSummary(id: string): MapPinSummary {
+        return summaries.current.get(id) ?? { id, level: null, day: null };
       }
 
-      for (const place of PLACES) {
-        const summary: MapPinSummary = { id: place.id, level: null, day: null };
-        summaries.current.set(place.id, summary);
+      function markerElement(
+        marker: import("leaflet").Marker,
+        attributes: Record<string, string>,
+      ) {
+        const icon = marker.getElement();
+        if (!icon) return;
+        icon.classList.add("leaflet-div-icon");
+        for (const [key, value] of Object.entries(attributes)) icon.setAttribute(key, value);
+      }
+
+      function addPin(
+        place: (typeof PLACES)[number],
+        latlng: import("leaflet").LatLngExpression,
+        spider: boolean,
+      ) {
+        if (!map) return;
+        const summary = placeSummary(place.id);
+        const selected = selectedRef.current === place.id;
+        const highlighted = selected || highlightRef.current === place.id;
         const marker = leaflet
-          .marker([place.latitude, place.longitude], {
-            icon: pinIcon(leaflet, place.name, summary, false),
+          .marker(latlng, {
+            icon: leaflet.divIcon({
+              className: "leaflet-div-icon agroclima-pin",
+              html: pinHtml(place.name, summary.level, summary.day, highlighted),
+              iconSize: [TAP_PX, TAP_PX],
+              iconAnchor: [TAP_PX / 2, TAP_PX / 2],
+            }),
             keyboard: true,
             title: place.name,
+            zIndexOffset: selected ? 2000 : highlighted ? 1000 : spider ? 500 : 0,
           })
-          .addTo(map);
-        const icon = marker.getElement();
-        icon?.setAttribute("data-place-id", place.id);
-        icon?.setAttribute("role", "button");
-        icon?.setAttribute("aria-label", place.name);
-        marker.on("click", () => {
+          .addTo(layer);
+        markerElement(marker, {
+          "data-place-id": place.id,
+          role: "button",
+          "aria-label": pinAriaLabel(place.name, summary.level, summary.day),
+        });
+        marker.on("click", (event) => {
+          leaflet.DomEvent.stopPropagation(event);
           selectedRef.current = place.id;
-          paint(place.id);
-          for (const otherId of markers.current.keys()) {
-            if (otherId !== place.id) paint(otherId);
-          }
-          const current = summaries.current.get(place.id) ?? summary;
-          onPickRef.current(place.id, current);
+          spiderIds = [];
+          draw();
+          onPickRef.current(place.id, placeSummary(place.id));
         });
         markers.current.set(place.id, marker);
       }
 
+      function draw() {
+        if (!map) return;
+        layer.clearLayers();
+        markers.current.clear();
+        const zoom = map.getZoom();
+        hostEl.dataset.zoom = String(zoom);
+        const spider = new Set(spiderIds);
+        const open = PLACES.filter((place) => !spider.has(place.id));
+        const groups = clusterPlaces(open, zoom);
+        for (const group of groups) {
+          if (group.length === 1) {
+            const place = PLACES.find((item) => item.id === group[0].id);
+            if (place) addPin(place, [place.latitude, place.longitude], false);
+            continue;
+          }
+          const members = group.flatMap((item) => {
+            const place = PLACES.find((candidate) => candidate.id === item.id);
+            return place ? [place] : [];
+          });
+          const level = worstLevel(members.map((place) => placeSummary(place.id).level));
+          const highlighted = members.some(
+            (place) => place.id === selectedRef.current || place.id === highlightRef.current,
+          );
+          const size = clusterBubblePx(members.length);
+          const latitude = members.reduce((sum, place) => sum + place.latitude, 0) / members.length;
+          const longitude = members.reduce((sum, place) => sum + place.longitude, 0) / members.length;
+          const marker = leaflet
+            .marker([latitude, longitude], {
+              icon: leaflet.divIcon({
+                className: "leaflet-div-icon agroclima-cluster",
+                html: clusterHtml(members.length, level, highlighted),
+                iconSize: [size, size],
+                iconAnchor: [size / 2, size / 2],
+              }),
+              keyboard: true,
+              title: clusterLabel(members.length, level),
+              zIndexOffset: highlighted ? 1000 : 0,
+            })
+            .addTo(layer);
+          markerElement(marker, {
+            "data-place-ids": members.map((place) => place.id).join(","),
+            "data-count": String(members.length),
+            "data-level": level ?? "",
+            "data-letter": level ? PIN_LETTER[level] : "",
+            role: "button",
+            "aria-label": clusterLabel(members.length, level),
+          });
+          marker.on("click", (event) => {
+            if (!map) return;
+            leaflet.DomEvent.stopPropagation(event);
+            const latitudeMid =
+              members.reduce((sum, place) => sum + place.latitude, 0) / members.length;
+            const gap = pixelsForMetres(closestMetres(members), latitudeMid, map.getMaxZoom());
+            const openSpider = () => {
+              spiderIds = members.map((place) => place.id);
+              draw();
+            };
+            if (shouldSpiderfy(gap)) {
+              openSpider();
+              return;
+            }
+            spiderIds = [];
+            const before = map.getZoom();
+            map.fitBounds(
+              leaflet.latLngBounds(
+                members.map((place) => [place.latitude, place.longitude] as [number, number]),
+              ),
+              { padding: [24, 24], maxZoom: map.getMaxZoom(), animate: false },
+            );
+            if (map.getZoom() === before) openSpider();
+          });
+        }
+
+        if (spiderIds.length > 0) {
+          const members = spiderIds.flatMap((id) => {
+            const place = PLACES.find((candidate) => candidate.id === id);
+            return place ? [place] : [];
+          });
+          const latitude = members.reduce((sum, place) => sum + place.latitude, 0) / members.length;
+          const longitude = members.reduce((sum, place) => sum + place.longitude, 0) / members.length;
+          const origin = map.latLngToLayerPoint([latitude, longitude]);
+          const offsets = spiderfyOffsets(members.length);
+          members.forEach((place, index) => {
+            const offset = offsets[index] ?? { x: 0, y: 0 };
+            const latlng = map!.layerPointToLatLng(origin.add([offset.x, offset.y]));
+            addPin(place, latlng, true);
+          });
+        }
+      }
+
+      drawRef.current = draw;
+      map.on("zoomend", () => {
+        if (map && spiderIds.length > 0 && map.getZoom() < map.getMaxZoom()) spiderIds = [];
+        draw();
+      });
       map.invalidateSize();
-      map.fitBounds(bounds, { padding: [22, 18] });
+      map.fitBounds(country, { padding: [24, 24], animate: false });
       map.setMinZoom(map.getZoom());
+      draw();
 
       void fetch("/api/risk/map")
         .then((response) => response.json())
         .then((body: { ok?: boolean; places?: MapPinSummary[] }) => {
           if (cancelled || !body.ok || !body.places) return;
-          for (const pin of body.places) {
-            summaries.current.set(pin.id, pin);
-            paint(pin.id);
-          }
+          for (const pin of body.places) summaries.current.set(pin.id, pin);
+          draw();
         })
         .catch(() => undefined);
     });
 
     return () => {
       cancelled = true;
+      drawRef.current = null;
+      (element as HTMLDivElement & { mapView?: import("leaflet").Map }).mapView = undefined;
       map?.remove();
       markerMap.clear();
     };
   }, []);
-
-  useEffect(() => {
-    void import("leaflet").then((leaflet) => {
-      for (const [id, marker] of markers.current) {
-        const summary = summaries.current.get(id);
-        const place = PLACES.find((item) => item.id === id);
-        if (!summary || !place) continue;
-        const selected = selectedRef.current === id;
-        const highlighted = selected || highlightId === id;
-        marker.setIcon(pinIcon(leaflet, place.name, summary, highlighted));
-        marker.setZIndexOffset(selected ? 2000 : highlighted ? 1000 : 0);
-        const icon = marker.getElement();
-        icon?.setAttribute("data-place-id", id);
-        icon?.setAttribute("role", "button");
-        icon?.setAttribute("aria-label", pinAriaLabel(place.name, summary.level, summary.day));
-      }
-    });
-  }, [highlightId]);
 
   return (
     <div
