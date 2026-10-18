@@ -81,13 +81,18 @@ A fixed check runs before any model call, on the Worker and on the Blaxel agent.
 | `lat` | yes | Decimal degrees. El Salvador range 13.1 to 14.5. |
 | `lon` | yes | Decimal degrees. El Salvador range -90.2 to -87.6. |
 | `elevation_m` | no | Meters from the named source. The forecast request does not send it. |
-| `source` | yes | Named public source for that row's coordinates. |
+| `coord_type` | yes | `town_centre` or `slope_point`. |
+| `source` | yes | Coordinate source and coffee-evidence source for that row. |
 
-The seed coordinates are municipal points from [Open Admin Data](https://openadmindata.org/api/v1/sv/municipality.json). `elevation_m` is the Open-Meteo DEM at that point. `npm test` checks unique ids, those ranges, and that department and source are not empty. `npm run check:locations` calls the Open-Meteo forecast for every row and prints the name of any row that does not return a 7-day forecast.
+The file has 20 rows from the sourced coffee-municipality list. Seventeen are town centres (`Wikidata` P625, cross-checked with GeoNames). `santa-ana`, `ahuachapan`, and `chalatenango` stay the existing coffee-zone slope points, with those coordinates unchanged. New ids pair the municipality with its department, so the two San Fernando rows are `san-fernando-chalatenango` and `san-fernando-morazan`. The picker shows the municipality name only. Antiguo Cuscatlán and Nuevo Cuscatlán are left out: they are urban municipalities, and the Data Engineer recommended dropping them. `elevation_m` is the Open-Meteo 90 m DEM from that list. Coffee evidence on each row is the ISC denominación de origen listing. The file does not rank soil, pH, or planting suitability. `npm test` checks unique ids, `coord_type`, those ranges, and that department and source are not empty. `npm run check:locations` calls the Open-Meteo forecast for every row and prints the name of any row that does not return a 7-day forecast.
+
+## Limits of the municipality list and its forecasts
+
+Coordinates are municipality town centres, not farms (the three original points are hand-picked coffee-slope points). Open-Meteo answers from a model grid, so its reply point can sit up to about 9 km from the place, and some places share a strip: Juayúa and Salcoatitán are identical; Jayaque, Talnique and Tepecoyo share one cell; so do Ataco with the Ahuachapán point and La Palma with the Chalatenango point. These differ only through the temperature and humidity downscale. Temperature follows the elevation of the point itself (about −0.6 °C per 100 m across the 20 places), so for a town centre it describes that elevation, not the farm's. Coffee evidence is the Instituto Salvadoreño del Café coffee-zone listing; weak rows kept: Talnique, Tepecoyo, San Fernando (Morazán), and Perquín and Salcoatitán (thin beyond ISC). Risk thresholds are unchanged pending a PROCAFÉ or agronomist check. Over Oct 2025–Oct 2026, alto covered 13–46% of dry-season days (Dec–Apr, median 31%) and 64–90% of rainy-season days.
 
 ## Known limitations
 
-The place points are municipal coordinates from `src/data/locations.json`, not the user's farm. December, March, and April often score high under the Avelino 2015 temperature rule, not yet validated by an agronomist.
+The place points in `src/data/locations.json` are a municipality centre or one of the three existing slope points, not the user's farm. December, March, and April often score high under the Avelino 2015 temperature rule, not yet validated by an agronomist.
 
 ## Riesgo del clima
 

@@ -432,7 +432,7 @@ function FotoStep({
           onChange={(event) => onMunicipalityQuery(event.target.value)}
         />
         <label className="text-lg font-semibold" htmlFor="municipio">
-          Municipio
+          Municipio (ubicación aproximada)
         </label>
         <select
           id="municipio"
@@ -448,6 +448,11 @@ function FotoStep({
             </option>
           ))}
         </select>
+        {placeById(placeId)?.coordType === "slope_point" ? null : (
+          <p className="text-lg">
+            El pronóstico es para el centro del municipio, no para su finca.
+          </p>
+        )}
         {department !== "" && municipalityQuery.trim() !== "" && matches.length === 0 ? (
           <p role="status">Ningún municipio con ese nombre.</p>
         ) : null}
