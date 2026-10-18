@@ -80,6 +80,40 @@ export const ASK_OTHER_CHIPS = [
   "¿Qué significa Probable?",
   "¿Cuándo fumigar?",
 ] as const;
+/** Shown while the ask box repeats a call that returned no JSON body. */
+export const ASK_RETRYING = "Reintentando…";
+/** Failure card after a drop, or after any response that already has a JSON body. */
+export const ASK_CLIENT_FAILED = "No pudimos responder ahora. Intente de nuevo.";
+export const ASK_RETRY_BUTTON = "Intentar de nuevo";
+
+/**
+ * One automatic retry, and only when the call returned no JSON body.
+ * A JSON error (400, 429, 502, 504, or any other status with a body) is not retried.
+ */
+export function shouldRetryAskClient(attempt: number, hasJsonBody: boolean): boolean {
+  return attempt === 1 && !hasJsonBody;
+}
+
+export type AskClientCard =
+  | { kind: "answer"; text: string; refused: boolean }
+  | { kind: "failure" };
+
+/** A JSON body is never retried. Errors use the failure card. A refusal stays an answer. */
+export function askClientCard(payload: unknown): AskClientCard {
+  if (!payload || typeof payload !== "object") return { kind: "failure" };
+  const record = payload as {
+    ok?: unknown;
+    answer?: unknown;
+    refused?: unknown;
+    error?: unknown;
+  };
+  const text = typeof record.answer === "string" ? record.answer : "";
+  if (!text) return { kind: "failure" };
+  const refused =
+    record.refused === true || record.error === "refused" || text === ASK_REFUSAL;
+  if (refused || record.ok === true) return { kind: "answer", text, refused };
+  return { kind: "failure" };
+}
 
 export type AskBackend = "blaxel" | "direct";
 

@@ -7,12 +7,17 @@ import {
   askChips,
   askDayLabel,
   askHeaders,
+  ASK_CLIENT_FAILED,
   ASK_HEADER,
   ASK_PLACEHOLDER,
   ASK_RATE_LIMITED,
   ASK_REFUSAL,
+  ASK_RETRY_BUTTON,
+  ASK_RETRYING,
   ASK_SOURCE,
   ASK_SYSTEM_PROMPT,
+  askClientCard,
+  shouldRetryAskClient,
   ASK_TOO_LONG,
   ASK_UNAVAILABLE,
   answerQuestion,
@@ -285,6 +290,38 @@ describe("ask AgroClima", () => {
     assert.match(headers["X-Agroclima-Latency-Ms"] ?? "", /^\d+$/);
     assert.equal(headers["X-Agroclima-Prompt-Tokens"], undefined);
     assert.equal(headers["X-Agroclima-Completion-Tokens"], undefined);
+  });
+
+  it("retries a transport failure once and keeps a JSON error on the failure card", () => {
+    assert.equal(ASK_RETRYING, "Reintentando…");
+    assert.equal(ASK_CLIENT_FAILED, "No pudimos responder ahora. Intente de nuevo.");
+    assert.equal(ASK_RETRY_BUTTON, "Intentar de nuevo");
+    assert.equal(ASK_SYSTEM_PROMPT.includes(ASK_RETRYING), false);
+    assert.equal(ASK_SYSTEM_PROMPT.includes(ASK_CLIENT_FAILED), false);
+    assert.equal(shouldRetryAskClient(1, false), true);
+    assert.equal(shouldRetryAskClient(2, false), false);
+    assert.equal(shouldRetryAskClient(1, true), false);
+    assert.equal(shouldRetryAskClient(2, true), false);
+    assert.deepEqual(askClientCard({ ok: false, error: "failed", answer: ASK_TRY_AGAIN }), {
+      kind: "failure",
+    });
+    assert.deepEqual(
+      askClientCard({ ok: false, error: "rate_limited", answer: ASK_RATE_LIMITED }),
+      { kind: "failure" },
+    );
+    assert.deepEqual(askClientCard({ ok: false, error: "too_long", answer: ASK_TOO_LONG }), {
+      kind: "failure",
+    });
+    assert.deepEqual(askClientCard(null), { kind: "failure" });
+    assert.deepEqual(askClientCard({}), { kind: "failure" });
+    assert.deepEqual(
+      askClientCard({ ok: true, answer: "El lunes el riesgo es alto.", refused: false }),
+      { kind: "answer", text: "El lunes el riesgo es alto.", refused: false },
+    );
+    assert.deepEqual(
+      askClientCard({ ok: false, error: "refused", answer: ASK_REFUSAL, refused: true }),
+      { kind: "answer", text: ASK_REFUSAL, refused: true },
+    );
   });
 
   it("uses the screen copy, caps an answer at three sentences, and refuses outside the data", async () => {
