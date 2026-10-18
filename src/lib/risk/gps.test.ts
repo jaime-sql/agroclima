@@ -81,7 +81,7 @@ describe("gps cases", () => {
   it("shows the municipality-centre note only after a pin or municipality is chosen", () => {
     assert.equal(
       municipalityCentreNote("pin", "town_centre"),
-      "Pronóstico para el centro del municipio, no para su finca",
+      "El pronóstico es para el centro del municipio, no para su finca.",
     );
     assert.equal(
       municipalityCentreNote("municipality", "town_centre"),

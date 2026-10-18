@@ -1,4 +1,3 @@
-import { TOWN_CENTRE_NOTE } from "../vision/copy.ts";
 import { EL_SALVADOR_BUFFER_KM, insideElSalvador } from "./boundary.ts";
 import { nearestPin, type PinPoint } from "./nearest.ts";
 
@@ -10,7 +9,8 @@ export const INVALID_GPS_MESSAGE = "No pudimos leer esa ubicación.";
 export const FAR_GPS_NOTE =
   "No hay un pin cercano en el mapa. Puede elegir un municipio para comparar.";
 
-export const MUNICIPALITY_CENTRE_NOTE = TOWN_CENTRE_NOTE;
+export const MUNICIPALITY_CENTRE_NOTE =
+  "El pronóstico es para el centro del municipio, no para su finca.";
 
 export const GRID_POINT_NOTE =
   "Pronóstico del punto más cercano de la cuadrícula del clima. Puede quedar a varios kilómetros.";

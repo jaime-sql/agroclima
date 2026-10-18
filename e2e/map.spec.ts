@@ -2,6 +2,9 @@ import { mkdirSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { project } from "../src/lib/map/cluster.ts";
+import { RISK_CUTOFF_FOOTER } from "../src/lib/risk/assess.ts";
+import { MUNICIPALITY_CENTRE_NOTE } from "../src/lib/risk/gps.ts";
+import { RISK_ZONE_NOTE } from "../src/lib/vision/copy.ts";
 import { MIXED_LEVELS, type FixtureLevel } from "./mixed-levels.ts";
 import { PLACES } from "../src/lib/places.ts";
 
@@ -28,7 +31,7 @@ function week(place: (typeof PLACES)[number]) {
     place: { id: place.id, name: place.name },
     available: true,
     timezone: "America/El_Salvador",
-    footer: "Estimación.",
+    footer: RISK_CUTOFF_FOOTER,
     plan: {
       fungicideClasses: ["triazol"],
       doseNote: "dosis según etiqueta / su agrónomo",
@@ -156,18 +159,17 @@ test("every place opens from the 390px map in at most 3 taps", async ({ page }) 
     const card = page.locator("div.flex.flex-col.gap-3").filter({
       has: page.getByRole("heading", { name: "Riesgo de roya esta semana" }),
     });
-    const coffeeNote = "Clima de una zona cafetalera cercana, no de su finca";
-    const centreNote = "Pronóstico para el centro del municipio, no para su finca";
     if (place.coordType === "town_centre") {
-      await expect(card.getByText(`Pronóstico de ${place.name}`)).toBeVisible();
-      await expect(card.getByText(centreNote)).toHaveCount(1);
-      await expect(card.getByText(coffeeNote)).toHaveCount(0);
+      await expect(card.getByText(place.name, { exact: true })).toBeVisible();
+      await expect(card.getByText(MUNICIPALITY_CENTRE_NOTE)).toHaveCount(1);
+      await expect(card.getByText(RISK_ZONE_NOTE)).toHaveCount(0);
       await expect(card.getByText(/Zona cafetalera/)).toHaveCount(0);
     } else {
       await expect(card.getByText(`Zona cafetalera de ${place.name}`)).toBeVisible();
-      await expect(card.getByText(coffeeNote)).toHaveCount(1);
-      await expect(card.getByText(centreNote)).toHaveCount(0);
+      await expect(card.getByText(RISK_ZONE_NOTE)).toHaveCount(1);
+      await expect(card.getByText(MUNICIPALITY_CENTRE_NOTE)).toHaveCount(0);
     }
+    await expect(card.getByText(RISK_CUTOFF_FOOTER)).toBeVisible();
     await expect(card.getByText(`Toda la semana: ${MIXED_LEVELS[place.id]}`)).toBeVisible();
     await expect(card.getByRole("button", { name: /riesgo/i })).toHaveCount(7);
     if (place.id === "santa-tecla-la-libertad") {
