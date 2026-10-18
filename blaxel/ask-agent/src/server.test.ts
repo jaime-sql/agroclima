@@ -191,13 +191,53 @@ describe("agroclima-ask service", () => {
       const response = await fetch(`${base}/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: "¿Y el maíz?", grounding: { place: "Santa Ana", days: [] } }),
+        body: JSON.stringify({ question: "¿El clima es de mi finca?", grounding: { place: "Santa Ana", days: [] } }),
       });
       assert.equal(response.status, 200);
       const payload = (await response.json()) as { ok: boolean; refused: boolean; answer: string };
       assert.equal(payload.ok, false);
       assert.equal(payload.refused, true);
       assert.equal(payload.answer, ASK_REFUSAL);
+    } finally {
+      await close();
+    }
+  });
+
+  it("refuses a dose question before calling OpenAI", async () => {
+    let calls = 0;
+    const server = createAskServer({
+      env: { apiKey: KEY },
+      fetchImpl: async () => {
+        calls += 1;
+        return new Response("no");
+      },
+    });
+    const { base, close } = await listen(server);
+    try {
+      const response = await fetch(base, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question: "¿Cuántos mililitros mezclo por bomba?",
+          grounding: { place: "Zona cafetalera de Santa Ana", timezone: "America/El_Salvador", days: [], diagnosis: null },
+        }),
+      });
+      assert.equal(response.status, 200);
+      const payload = (await response.json()) as {
+        ok: boolean;
+        answer: string;
+        refused: boolean;
+        promptTokens: null;
+        completionTokens: null;
+        latencyMs: number;
+      };
+      assert.equal(payload.ok, false);
+      assert.equal(payload.refused, true);
+      assert.equal(payload.answer, ASK_REFUSAL);
+      assert.equal(payload.promptTokens, null);
+      assert.equal(payload.completionTokens, null);
+      assert.equal(payload.latencyMs, 0);
+      assert.equal(calls, 0);
     } finally {
       await close();
     }

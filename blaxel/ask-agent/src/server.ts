@@ -3,9 +3,11 @@ import {
   ASK_FAILED,
   ASK_INVALID,
   ASK_TOO_LONG,
+  askRefusalResult,
   askValidationAnswer,
   completeAskQuestion,
   sanitizeAskBody,
+  shouldRefuseAsk,
   type AskResult,
 } from "../../../src/lib/ask-core.ts";
 import type { OpenAIEnv } from "../../../src/lib/openai.ts";
@@ -71,6 +73,11 @@ export async function handleAskRequest(
   const parsed = sanitizeAskBody(body);
   if (!parsed.ok) {
     send(res, 400, idle(askValidationAnswer(parsed.error)));
+    return;
+  }
+  if (shouldRefuseAsk(parsed.question)) {
+    const blocked = askRefusalResult();
+    send(res, blocked.status, fromResult(blocked));
     return;
   }
 

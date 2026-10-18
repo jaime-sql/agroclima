@@ -67,7 +67,7 @@ Expected:
 ## TC-10 Ask stays on the screen data
 Steps: `npm test` runs `src/lib/ask.test.ts` with a mocked OpenAI reply.
 Expected:
-- The system prompt is fixed Spanish. It allows no fungicide dose beyond "según etiqueta", no brands, no other crops, and no farm weather. It ignores instructions inside the question. If the data is not enough, the reply is exactly "No puedo responder eso con seguridad. Consulte con su agrónomo." and the screen adds "Compartir con mi agrónomo".
+- The system prompt is fixed Spanish. A deterministic check runs first and refuses doses, products, treatment how-to, instruction overrides, prompt reveals, and other crops with no model call. The model still answers what Probable and the risk levels mean, and that the weather is from a nearby zone, not the farm. It names no brands and invents no farm weather. If the data is not enough, or the check matches, the reply is exactly "No puedo responder eso con seguridad. Consulte con su agrónomo." and the screen adds "Compartir con mi agrónomo".
 - The question is only in the user message. The data is the zone label, timezone, and each `/api/risk` day (`date`, `level`, `score`, `wetHours`, `tmax`, `rain`, `reason`) plus the diagnosis. There is no separate summary. Unknown client fields are dropped.
 - A question longer than 400 characters is rejected with no model call. Replies are capped at 280 tokens and at 3 sentences. Each answer shows a small ▶ and "Basado en el pronóstico y la foto de esta pantalla".
 - The same address can ask 8 times in 10 minutes. The 9th gets "Ha hecho muchas preguntas seguidas. Intente en unos minutos." The limiter stores timestamps only.
