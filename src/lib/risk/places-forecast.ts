@@ -2,7 +2,10 @@ import { formatWeekday } from "../format.ts";
 import { PLACES } from "../places.ts";
 import { placesForecastUrl } from "../weather/openmeteo.ts";
 import { assessForecast } from "./assess.ts";
+import { worstDay } from "./pin-card.ts";
 import type { RiskLevel, WeekAssessment, OpenMeteoForecast } from "./types.ts";
+
+export { worstDay };
 
 /** One scored batch is reused so a page view does not call Open-Meteo again. */
 export const PLACES_FORECAST_CACHE_MS = 30 * 60 * 1000;
@@ -23,22 +26,6 @@ let cache: CacheEntry | null = null;
 
 export function clearPlaceMapCache(): void {
   cache = null;
-}
-
-const LEVEL_RANK: Record<RiskLevel, number> = { bajo: 1, medio: 2, alto: 3 };
-
-/** Earliest day that reaches the week's highest level. Null when no day was scored. */
-export function worstDay(days: WeekAssessment["days"]): { level: RiskLevel; date: string } | null {
-  let best: { level: RiskLevel; date: string; rank: number } | null = null;
-  for (const day of days) {
-    if (!day.level) continue;
-    const rank = LEVEL_RANK[day.level];
-    const earlierTie = best !== null && rank === best.rank && day.date < best.date;
-    if (!best || rank > best.rank || earlierTie) {
-      best = { level: day.level, date: day.date, rank };
-    }
-  }
-  return best ? { level: best.level, date: best.date } : null;
 }
 
 function pinFor(id: string, week: WeekAssessment): PlaceMapPin {

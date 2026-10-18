@@ -1,33 +1,51 @@
-import { mkdirSync, readFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
+import { formatWeekday } from "../src/lib/format.ts";
+import { pinCardLine, worstDay } from "../src/lib/risk/pin-card.ts";
 
 type Place = { id: string; name: string };
+type Level = "alto" | "medio" | "bajo";
 
 const places = JSON.parse(readFileSync("src/data/locations.json", "utf8")) as Place[];
-const levels = ["alto", "medio", "bajo"] as const;
-const days = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
-const colors: Record<(typeof levels)[number], string> = {
+const colors: Record<Level, string> = {
   alto: "rgb(138, 28, 20)",
   medio: "rgb(138, 106, 0)",
   bajo: "rgb(30, 91, 42)",
 };
+const letter: Record<Level, string> = { alto: "A", medio: "M", bajo: "B" };
+const dates = [
+  "2026-10-18",
+  "2026-10-19",
+  "2026-10-20",
+  "2026-10-21",
+  "2026-10-22",
+  "2026-10-23",
+  "2026-10-24",
+];
 
-const pins = places.map((place, index) => ({
-  id: place.id,
-  level: levels[index % levels.length],
-  day: days[index % days.length],
-}));
+function levelsFor(index: number): Level[] {
+  const kind = index % 3;
+  if (kind === 0) return dates.map(() => "bajo");
+  if (kind === 1) return dates.map((_, day) => (day === 0 || day === 3 ? "alto" : "medio"));
+  return dates.map((_, day) => (day >= 5 ? "medio" : "bajo"));
+}
 
-function week(place: Place) {
-  const dates = [
-    "2026-10-18",
-    "2026-10-19",
-    "2026-10-20",
-    "2026-10-21",
-    "2026-10-22",
-    "2026-10-23",
-    "2026-10-24",
-  ];
+const weeks = places.map((place, index) => {
+  const levels = levelsFor(index);
+  const scored = dates.map((date, day) => ({ date, level: levels[day] }));
+  const worst = worstDay(scored);
+  return {
+    ...place,
+    levels,
+    level: worst?.level ?? null,
+    day: worst ? formatWeekday(worst.date) : "",
+    line: pinCardLine(scored, dates[0]),
+  };
+});
+
+const pins = weeks.map((place) => ({ id: place.id, level: place.level, day: place.day }));
+
+function week(place: (typeof weeks)[number]) {
   return {
     ok: true,
     place: { id: place.id, name: place.name },
@@ -41,7 +59,7 @@ function week(place: Place) {
     },
     days: dates.map((date, index) => ({
       date,
-      level: levels[index % levels.length],
+      level: place.levels[index],
       reason: "Humedad o lluvia algunas horas.",
       score: 2,
       wetHours: 4,
@@ -56,6 +74,53 @@ function week(place: Place) {
   };
 }
 
+async function pinSpread(map: import("@playwright/test").Locator) {
+  return map.evaluate((element) => {
+    const mapRect = element.getBoundingClientRect();
+    const pins = [...element.querySelectorAll(".agroclima-pin")].map((marker) => {
+      const pill = marker.querySelector("span");
+      const rect = marker.getBoundingClientRect();
+      return {
+        id: marker.getAttribute("data-place-id"),
+        label: marker.getAttribute("aria-label"),
+        text: (marker.textContent ?? "").trim(),
+        background: pill ? getComputedStyle(pill).backgroundColor : "",
+        width: rect.width,
+        height: rect.height,
+        z: Number((marker as HTMLElement).style.zIndex || 0),
+        cx: rect.left + rect.width / 2,
+        cy: rect.top + rect.height / 2,
+        left: rect.left - mapRect.left,
+        top: rect.top - mapRect.top,
+        right: mapRect.right - rect.right,
+        bottom: mapRect.bottom - rect.bottom,
+      };
+    });
+    let min = Number.POSITIVE_INFINITY;
+    let pair: [string, string] = ["", ""];
+    for (let i = 0; i < pins.length; i += 1) {
+      for (let j = i + 1; j < pins.length; j += 1) {
+        const distance = Math.hypot(pins[i].cx - pins[j].cx, pins[i].cy - pins[j].cy);
+        if (distance < min) {
+          min = distance;
+          pair = [pins[i].id ?? "", pins[j].id ?? ""];
+        }
+      }
+    }
+    const xs = pins.map((pin) => pin.cx);
+    const ys = pins.map((pin) => pin.cy);
+    return {
+      mapWidth: mapRect.width,
+      mapHeight: mapRect.height,
+      spanX: Math.max(...xs) - Math.min(...xs),
+      spanY: Math.max(...ys) - Math.min(...ys),
+      minDistance: min,
+      closest: pair,
+      pins,
+    };
+  });
+}
+
 test("map is at least 300px tall at 390px and a pin opens its week", async ({ page }) => {
   mkdirSync("e2e/output", { recursive: true });
   await page.route("**://*.openstreetmap.org/**", (route) => route.abort());
@@ -66,7 +131,7 @@ test("map is at least 300px tall at 390px and a pin opens its week", async ({ pa
       return;
     }
     const id = url.searchParams.get("place") ?? "";
-    const place = places.find((item) => item.id === id);
+    const place = weeks.find((item) => item.id === id);
     if (!place) {
       await route.fulfill({ status: 400, json: { ok: false, error: "unknown_place" } });
       return;
@@ -92,70 +157,104 @@ test("map is at least 300px tall at 390px and a pin opens its week", async ({ pa
   await expect
     .poll(async () =>
       markers.evaluateAll((nodes) =>
-        nodes.every((node) => {
-          const text = node.textContent ?? "";
-          return /alto|medio|bajo/.test(text) && /domingo|lunes|martes|miércoles|jueves|viernes|sábado/i.test(text);
-        }),
+        nodes.every((node) => /^[AMB]$/.test((node.textContent ?? "").trim())),
       ),
     )
     .toBe(true);
+  await expect.poll(async () => (await pinSpread(map)).spanX).toBeGreaterThan((box!.width ?? 0) * 0.7);
 
-  const painted = await map.evaluate((element) => {
-    const mapRect = element.getBoundingClientRect();
-    return [...element.querySelectorAll(".agroclima-pin")].map((marker) => {
-      const pill = marker.querySelector("span");
-      const rect = pill?.getBoundingClientRect();
-      return {
-        title: marker.getAttribute("title"),
-        text: pill?.textContent ?? "",
-        background: pill ? getComputedStyle(pill).backgroundColor : "",
-        overflowX: pill ? pill.scrollWidth - pill.clientWidth : 99,
-        overflowY: pill ? pill.scrollHeight - pill.clientHeight : 99,
-        left: rect ? rect.left - mapRect.left : -1,
-        top: rect ? rect.top - mapRect.top : -1,
-        right: rect ? mapRect.right - rect.right : -1,
-        bottom: rect ? mapRect.bottom - rect.bottom : -1,
-      };
-    });
-  });
-  expect(painted).toHaveLength(20);
-  for (const [index, place] of places.entries()) {
-    const pin = pins[index];
-    const paint = painted[index];
-    expect(paint.title, place.id).toBe(place.name);
-    expect(paint.text, place.name).toContain(pin.level);
-    expect(paint.text, place.name).toContain(pin.day);
-    expect(paint.background, place.name).toBe(colors[pin.level]);
-    expect(paint.overflowX, place.name).toBeLessThanOrEqual(1);
-    expect(paint.overflowY, place.name).toBeLessThanOrEqual(1);
+  const painted = await pinSpread(map);
+  expect(painted.pins).toHaveLength(20);
+  expect(painted.mapHeight).toBeGreaterThanOrEqual(300);
+  expect(painted.spanX).toBeGreaterThan(painted.mapWidth * 0.7);
+  for (const place of weeks) {
+    const paint = painted.pins.find((item) => item.id === place.id);
+    expect(paint, place.id).toBeTruthy();
+    if (!paint || !place.level) continue;
+    expect(paint.text, place.name).toBe(letter[place.level]);
+    expect(paint.label, place.name).toBe(
+      `${place.name}: ${place.level}, ${place.day.toLocaleLowerCase("es-SV")}`,
+    );
+    expect(paint.background, place.name).toBe(colors[place.level]);
+    expect(paint.width, place.name).toBeGreaterThanOrEqual(40);
+    expect(paint.height, place.name).toBeGreaterThanOrEqual(40);
     expect(paint.left, place.name).toBeGreaterThanOrEqual(-1);
     expect(paint.top, place.name).toBeGreaterThanOrEqual(-1);
     expect(paint.right, place.name).toBeGreaterThanOrEqual(-1);
     expect(paint.bottom, place.name).toBeGreaterThanOrEqual(-1);
   }
+  await expect(page.locator(".leaflet-control-zoom-out")).toHaveClass(/leaflet-disabled/);
 
   await map.screenshot({ path: "e2e/output/mapa-390.png" });
 
-  const hit = await map.evaluate((element) => {
-    const markers = [...element.querySelectorAll(".agroclima-pin")];
-    for (const marker of markers) {
-      const rect = marker.getBoundingClientRect();
-      const x = rect.left + rect.width / 2;
-      const y = rect.top + rect.height / 2;
-      const top = document.elementFromPoint(x, y);
-      if (!top || !marker.contains(top)) continue;
-      const pill = marker.querySelector("span");
-      const day = pill?.querySelector("span")?.textContent ?? "";
-      const level = (pill?.childNodes[0]?.textContent ?? "").trim();
-      return { title: marker.getAttribute("title") ?? "", level, day, x, y };
+  const targetId = "san-fernando-chalatenango";
+  const target = weeks.find((place) => place.id === targetId);
+  expect(target?.name).toBe("San Fernando");
+  expect(target?.line).toBe("Peor día: Viernes");
+  const point = await page.locator(`[data-place-id="${targetId}"]`).evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    const samples = [
+      [rect.left + rect.width / 2, rect.top + rect.height / 2],
+      [rect.left + 8, rect.top + rect.height / 2],
+      [rect.right - 8, rect.top + rect.height / 2],
+      [rect.left + rect.width / 2, rect.top + 8],
+      [rect.left + rect.width / 2, rect.bottom - 8],
+    ];
+    for (const [x, y] of samples) {
+      const hit = document.elementFromPoint(x, y);
+      if (hit && (hit === element || element.contains(hit))) return { x, y, owns: true };
     }
-    return null;
+    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2, owns: false };
   });
-  expect(hit, "a pin can be tapped").not.toBeNull();
-  await page.touchscreen.tap(hit!.x, hit!.y);
-  const card = page.getByText(`${hit!.title}: ${hit!.level}, ${hit!.day}`);
-  await expect(card).toBeVisible();
-  await expect(page.getByRole("button", { name: /riesgo/i })).toHaveCount(7);
-  await card.scrollIntoViewIfNeeded();
-  await page.screenshot({ path: "e2e/output/pin-card-390.png", fullPage: false });
+  expect(point.owns, "San Fernando is the marker under the tap").toBe(true);
+  await page.touchscreen.tap(point.x, point.y);
+
+  const raised = await page.locator("#mapa .agroclima-pin").evaluateAll((nodes, id) => {
+    const zOf = (node: Element) => Number((node as HTMLElement).style.zIndex || 0);
+    const selected = nodes.find((node) => node.getAttribute("data-place-id") === id);
+    const others = nodes.filter((node) => node.getAttribute("data-place-id") !== id).map(zOf);
+    return { selected: selected ? zOf(selected) : 0, maxOther: Math.max(...others) };
+  }, targetId);
+  expect(raised.selected).toBeGreaterThan(raised.maxOther);
+
+  const card = page
+    .locator("div.flex.flex-col.gap-3")
+    .filter({ has: page.getByRole("heading", { name: "Riesgo de roya esta semana" }) })
+    .filter({ hasText: target!.line! });
+  await expect(card.getByText(target!.line!)).toBeVisible();
+  await expect(card.getByText(`Zona cafetalera de ${target!.name}`)).toBeVisible();
+  await expect(card.getByRole("button", { name: /riesgo/i })).toHaveCount(7);
+  await card.screenshot({ path: "e2e/output/pin-card-390.png" });
+
+  await page.locator(".leaflet-control-zoom-in").click();
+  let previous = 0;
+  const zoomedMin = await expect
+    .poll(async () => {
+      const spread = await pinSpread(map);
+      const settled =
+        previous > 0 &&
+        Math.abs(spread.minDistance - previous) < 0.5 &&
+        spread.minDistance > painted.minDistance * 1.7;
+      previous = spread.minDistance;
+      return settled ? spread.minDistance : 0;
+    })
+    .toBeGreaterThan(painted.minDistance * 1.7)
+    .then(() => pinSpread(map));
+
+  const report = {
+    mapWidth: painted.mapWidth,
+    mapHeight: painted.mapHeight,
+    spanX: painted.spanX,
+    spanY: painted.spanY,
+    minDistancePx: painted.minDistance,
+    closest: painted.closest,
+    minDistanceAfterOneZoomPx: zoomedMin.minDistance,
+    closestAfterOneZoom: zoomedMin.closest,
+  };
+  writeFileSync("e2e/output/pin-distance.json", JSON.stringify(report, null, 2));
+  console.log(`MIN_PIN_DISTANCE_PX ${report.minDistancePx.toFixed(1)} ${report.closest.join(" ")}`);
+  console.log(
+    `MIN_PIN_DISTANCE_AFTER_ONE_ZOOM_PX ${report.minDistanceAfterOneZoomPx.toFixed(1)} ${report.closestAfterOneZoom.join(" ")}`,
+  );
+  expect(report.minDistanceAfterOneZoomPx).toBeGreaterThan(report.minDistancePx * 1.7);
 });

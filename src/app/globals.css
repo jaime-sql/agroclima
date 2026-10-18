@@ -33,7 +33,7 @@
   z-index: 0;
 }
 
-.agroclima-pin {
+.leaflet-container .agroclima-pin {
   background: transparent;
   border: 0;
 }
