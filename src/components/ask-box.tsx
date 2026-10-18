@@ -29,7 +29,7 @@ export function AskBox({
 }: {
   place: string;
   timezone: string | null;
-  days: AskDay[];
+  days: Array<Omit<AskDay, "label">>;
   diagnosis: AskGrounding["diagnosis"];
   onShare: () => void;
 }) {

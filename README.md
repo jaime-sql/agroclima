@@ -67,7 +67,7 @@ curl -sS -X POST "https://run.blaxel.ai/hackatonhf2025/agents/agroclima-ask" -H 
 
 ## Ask decisions
 
-A fixed check runs before any model call, on the Worker and on the Blaxel agent. It refuses doses, quantities, mixing, product or brand requests, treatment how-to, instruction overrides, prompt reveals, and other crops, and it returns the exact refusal sentence without calling OpenAI. The model still answers questions the check allows, including what Probable, Alto, Medio, and Bajo mean, and whether the weather is from the farm. That second step exists because the check only catches obvious requests. The model must not invent a dose or repeat its own prompt.
+A fixed check runs before any model call, on the Worker and on the Blaxel agent. It refuses doses, quantities, mixing, product or brand requests, treatment how-to, instruction overrides, prompt reveals, other crops, a forecast for one farm or plot, and hour-by-hour weather. It still answers which day is worse, whether it will rain on a named day, what Probable, Alto, Medio, and Bajo mean, and whether the weather shown is from the farm. A model reply that contains the refusal sentence is replaced by that sentence alone. Each day in the grounding already names its weekday, and a photo level includes a short meaning that is a guide, not a confirmation. The model must not invent a dose or repeat its own prompt. Evals may send `X-Agroclima-Force-Backend: direct` or `blaxel` only together with `X-Agroclima-Eval-Token` equal to the Worker secret `BLAXEL_API_KEY`; any other request ignores that header. `direct` skips Blaxel. `blaxel` returns HTTP 502 instead of falling back when that call fails or the URL is missing. `X-Agroclima-Backend` names the backend that answered.
 
 ## Known limitations
 

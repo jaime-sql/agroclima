@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import { beforeEach, describe, it } from "node:test";
 import {
+  ASK_BACKEND_UNAVAILABLE,
   ASK_EMPTY,
   ASK_FAILED,
   ASK_MAX_QUESTION_CHARS,
   ASK_MAX_REPLY_TOKENS,
   askChips,
+  askDayLabel,
   askHeaders,
   ASK_HEADER,
   ASK_PLACEHOLDER,
@@ -20,8 +22,13 @@ import {
   BLAXEL_WORKSPACE,
   clientIp,
   costHeaders,
+  DIAGNOSIS_LEVEL_MEANINGS,
+  diagnosisMeaning,
+  forcedAskBackend,
   limitSentences,
+  readAskForce,
   resetAskRateLimit,
+  sanitizeAskBody,
   shouldRefuseAsk,
 } from "./ask.ts";
 
@@ -116,13 +123,16 @@ describe("ask AgroClima", () => {
     assert.match(system, /Probable/);
     assert.match(system, /zona cafetalera cercana/);
     assert.match(system, /No escriba la palabra instrucciones/);
+    assert.match(system, /viernes 16 oct/);
+    assert.match(system, /No calcule usted el día de la semana/);
+    assert.match(system, /no recite los otros días/);
     assert.equal(system.includes(ASK_REFUSAL), true);
     const payload = JSON.parse(user) as {
       datos: {
         place: string;
         timezone: string;
         days: Array<Record<string, unknown>>;
-        diagnosis: { headline: string; detail: string };
+        diagnosis: { headline: string; detail: string; meaning?: string };
         summary?: string;
       };
       pregunta: string;
@@ -135,6 +145,7 @@ describe("ask AgroClima", () => {
     assert.deepEqual(Object.keys(payload.datos).sort(), ["days", "diagnosis", "place", "timezone"]);
     assert.deepEqual(Object.keys(payload.datos.days[0] ?? {}).sort(), [
       "date",
+      "label",
       "level",
       "rain",
       "reason",
@@ -144,6 +155,7 @@ describe("ask AgroClima", () => {
     ]);
     assert.deepEqual(payload.datos.days[0], {
       date: "2026-10-12",
+      label: "lunes 12 oct",
       level: "alto",
       score: 4,
       wetHours: 11,
@@ -154,6 +166,7 @@ describe("ask AgroClima", () => {
     assert.deepEqual(payload.datos.diagnosis, {
       headline: "Parece roya",
       detail: "Seguro · 90 %",
+      meaning: DIAGNOSIS_LEVEL_MEANINGS.seguro,
     });
     assert.equal(user.includes("no-enviar"), false);
     assert.equal(user.includes("farmWeather"), false);
@@ -292,6 +305,13 @@ describe("ask AgroClima", () => {
     assert.equal(
       limitSentences("• Alto el lunes. • Medio el martes. • Bajo el miércoles. • Otro día."),
       "Alto el lunes. Medio el martes. Bajo el miércoles.",
+    );
+    const aroundRefusal = `El martes es Medio. ${ASK_REFUSAL} El viernes también.`;
+    assert.equal(limitSentences(aroundRefusal), ASK_REFUSAL);
+    assert.equal(limitSentences(aroundRefusal, 1).endsWith("Consulte con su agrónomo."), true);
+    assert.equal(
+      limitSentences("Uno. Dos. No puedo responder eso con seguridad. Consulte con su agrónomo."),
+      ASK_REFUSAL,
     );
     const refused = await answerQuestion({
       body: { question: "¿El clima es de mi finca?", place: "Zona cafetalera de Santa Ana", days: [] },
@@ -500,9 +520,250 @@ describe("ask AgroClima", () => {
       "¿Puedo fumigar hoy?",
       "¿Cuánta lluvia cae el jueves?",
       "Will it rain on Wednesday?",
+      "¿Qué día es el peor de la semana?",
+      "¿Va a llover el lunes?",
+      "¿El viernes es peor que el sábado?",
+      "¿Cuántas horas húmedas tiene el martes?",
     ]) {
       assert.equal(shouldRefuseAsk(question), false, question);
     }
+  });
+
+  it("returns only the refusal sentence when the model wraps it in other text", async () => {
+    const wrapped = `  Frase previa.\n${ASK_REFUSAL}\nOtra frase. Y una más.`;
+    const result = await answerQuestion({
+      body: { question: "¿Va a llover el lunes?", place: "Zona cafetalera de Santa Ana", days: [] },
+      env: { apiKey: "secret" },
+      ip: "203.0.113.90",
+      fetchImpl: async () =>
+        Response.json({
+          choices: [{ message: { content: wrapped } }],
+          usage: { prompt_tokens: 3, completion_tokens: 9 },
+        }),
+    });
+    assert.equal(result.answer, ASK_REFUSAL);
+    assert.equal(result.refused, true);
+    assert.equal(result.calledModel, true);
+    assert.equal(result.answer.endsWith("Consulte con su agrónomo."), true);
+  });
+
+  it("refuses a farm forecast and an hourly forecast, and still answers a named day", () => {
+    for (const question of [
+      "¿A qué hora empieza la lluvia el martes?",
+      "¿Va a llover por la tarde en la zona?",
+      "Quiero el pronóstico hora por hora",
+      "What time will rain start tomorrow?",
+      "¿Cuánta lluvia cae en mi parcela mañana?",
+      "¿El clima en mi finca es distinto de la zona?",
+      "Compare my farm weather with the zone",
+      "¿Qué temperatura hay sobre mi lote?",
+      "a qu3 h0ra llueve",
+    ]) {
+      assert.equal(shouldRefuseAsk(question), true, question);
+    }
+  });
+
+  it("writes the weekday label and a level meaning that is not a confirmation", () => {
+    assert.equal(askDayLabel("2026-10-16"), "viernes 16 oct");
+    assert.equal(askDayLabel("2026-10-12"), "lunes 12 oct");
+    const probable = sanitizeAskBody({
+      question: "¿Qué quiere decir el resultado de la foto?",
+      place: "Zona cafetalera de Santa Ana",
+      days: [
+        {
+          date: "2026-10-16",
+          level: "medio",
+          score: 2,
+          wetHours: 4,
+          tmax: 25,
+          rain: 1,
+          reason: "Pocas horas húmedas favorables; riesgo bajo de roya",
+        },
+      ],
+      diagnosis: { headline: "Parece roya", detail: "Probable · 70 %" },
+    });
+    assert.equal(probable.ok, true);
+    if (!probable.ok) return;
+    assert.equal(probable.grounding.days[0]?.label, "viernes 16 oct");
+    assert.equal(probable.grounding.diagnosis?.meaning, DIAGNOSIS_LEVEL_MEANINGS.probable);
+    assert.equal(diagnosisMeaning("Muy probable · 88 %"), DIAGNOSIS_LEVEL_MEANINGS.muyProbable);
+    assert.equal(diagnosisMeaning("No seguro · 40 %"), DIAGNOSIS_LEVEL_MEANINGS.unsure);
+    assert.equal(diagnosisMeaning("No estamos seguros."), DIAGNOSIS_LEVEL_MEANINGS.unsure);
+    assert.equal(diagnosisMeaning("Parece sana. Revise otras plantas."), null);
+    const notes = Object.values(DIAGNOSIS_LEVEL_MEANINGS).join(" ");
+    assert.equal(/\b(dosis|fungicid\w*|producto|marca|ml|químico)\b/i.test(notes), false);
+    assert.match(notes, /no una confirmación/);
+  });
+
+  it("forces a backend only when the eval token matches the Blaxel secret", async () => {
+    const secret = "eval-secret-9f3c";
+    const blaxelUrl = "https://ask.blaxel.test/agroclima-ask";
+    const seen: string[] = [];
+    const fetchImpl: typeof fetch = async (input, init) => {
+      const url = String(input);
+      seen.push(url);
+      const body = String(init?.body ?? "");
+      assert.equal(body.includes(secret), false);
+      if (url === blaxelUrl) return new Response("down", { status: 503 });
+      return Response.json({
+        choices: [{ message: { content: "El lunes puede llover." } }],
+        usage: { prompt_tokens: 4, completion_tokens: 2 },
+      });
+    };
+    const env = { apiKey: "openai-secret", blaxelAskUrl: blaxelUrl, blaxelApiKey: secret };
+    const body = { question: "¿Va a llover el lunes?", place: "Zona cafetalera de Santa Ana", days: [] };
+
+    seen.length = 0;
+    const forcedDirect = await answerQuestion({
+      body,
+      env,
+      ip: "203.0.113.91",
+      forceBackend: "direct",
+      evalToken: secret,
+      fetchImpl,
+    });
+    assert.deepEqual(seen, ["https://api.openai.com/v1/chat/completions"]);
+    assert.equal(forcedDirect.backend, "direct");
+    assert.equal(forcedDirect.answer, "El lunes puede llover.");
+    assert.equal(askHeaders(forcedDirect).get("X-Agroclima-Backend"), "direct");
+    assert.equal(JSON.stringify(forcedDirect).includes(secret), false);
+
+    seen.length = 0;
+    const forcedBlaxel = await answerQuestion({
+      body,
+      env,
+      ip: "203.0.113.92",
+      forceBackend: "blaxel",
+      evalToken: secret,
+      fetchImpl,
+    });
+    assert.deepEqual(seen, [blaxelUrl]);
+    assert.equal(forcedBlaxel.status, 502);
+    assert.equal(forcedBlaxel.error, "backend_unavailable");
+    assert.equal(forcedBlaxel.answer, ASK_BACKEND_UNAVAILABLE);
+    assert.equal(forcedBlaxel.backend, null);
+    assert.equal(askHeaders(forcedBlaxel).get("X-Agroclima-Backend"), null);
+    assert.equal(JSON.stringify(forcedBlaxel).includes(secret), false);
+
+    seen.length = 0;
+    const wrongToken = await answerQuestion({
+      body,
+      env,
+      ip: "203.0.113.93",
+      forceBackend: "direct",
+      evalToken: "not-the-secret",
+      fetchImpl,
+    });
+    assert.deepEqual(seen, [blaxelUrl, "https://api.openai.com/v1/chat/completions"]);
+    assert.equal(wrongToken.backend, "direct");
+    assert.equal(wrongToken.status, 200);
+
+    seen.length = 0;
+    const missingToken = await answerQuestion({
+      body,
+      env,
+      ip: "203.0.113.94",
+      forceBackend: "blaxel",
+      fetchImpl,
+    });
+    assert.deepEqual(seen, [blaxelUrl, "https://api.openai.com/v1/chat/completions"]);
+    assert.equal(missingToken.backend, "direct");
+
+    seen.length = 0;
+    const unsetSecret = await answerQuestion({
+      body,
+      env: { apiKey: "openai-secret", blaxelAskUrl: blaxelUrl, blaxelApiKey: "  " },
+      ip: "203.0.113.95",
+      forceBackend: "blaxel",
+      evalToken: secret,
+      fetchImpl,
+    });
+    assert.deepEqual(seen, ["https://api.openai.com/v1/chat/completions"]);
+    assert.equal(unsetSecret.status, 200);
+    assert.equal(unsetSecret.backend, "direct");
+    assert.equal(unsetSecret.error, undefined);
+
+    seen.length = 0;
+    const otherValue = await answerQuestion({
+      body,
+      env,
+      ip: "203.0.113.96",
+      forceBackend: "openai",
+      evalToken: secret,
+      fetchImpl,
+    });
+    assert.deepEqual(seen, [blaxelUrl, "https://api.openai.com/v1/chat/completions"]);
+    assert.equal(otherValue.backend, "direct");
+
+    const hosted = await answerQuestion({
+      body,
+      env,
+      ip: "203.0.113.98",
+      forceBackend: "blaxel",
+      evalToken: secret,
+      fetchImpl: async (input) => {
+        assert.equal(String(input), blaxelUrl);
+        return Response.json({
+          ok: true,
+          answer: "El lunes puede llover.",
+          refused: false,
+          promptTokens: 2,
+          completionTokens: 2,
+          latencyMs: 5,
+        });
+      },
+    });
+    assert.equal(hosted.backend, "blaxel");
+    assert.equal(hosted.answer, "El lunes puede llover.");
+    assert.equal(askHeaders(hosted).get("X-Agroclima-Backend"), "blaxel");
+    assert.equal(JSON.stringify(hosted).includes(secret), false);
+
+    let missingUrlCalled = false;
+    const missingUrl = await answerQuestion({
+      body,
+      env: { apiKey: "openai-secret", blaxelApiKey: secret },
+      ip: "203.0.113.99",
+      forceBackend: "blaxel",
+      evalToken: secret,
+      fetchImpl: async () => {
+        missingUrlCalled = true;
+        return new Response("no");
+      },
+    });
+    assert.equal(missingUrlCalled, false);
+    assert.equal(missingUrl.status, 502);
+    assert.equal(missingUrl.error, "backend_unavailable");
+    assert.equal(JSON.stringify(missingUrl).includes(secret), false);
+
+    assert.equal(forcedAskBackend("Direct", secret, secret), null);
+    assert.equal(forcedAskBackend("direct", "x", secret), null);
+    assert.equal(forcedAskBackend("blaxel", secret, ""), null);
+    const headers = new Map<string, string>([
+      ["x-agroclima-force-backend", "direct"],
+      ["x-agroclima-eval-token", secret],
+    ]);
+    assert.deepEqual(
+      readAskForce((name) => headers.get(name) ?? null),
+      { forceBackend: "direct", evalToken: secret },
+    );
+
+    let called = false;
+    const refused = await answerQuestion({
+      body: { question: "¿A qué hora llueve en mi parcela?", place: "Zona cafetalera de Santa Ana", days: [] },
+      env,
+      ip: "203.0.113.97",
+      forceBackend: "blaxel",
+      evalToken: secret,
+      fetchImpl: async () => {
+        called = true;
+        return new Response("no");
+      },
+    });
+    assert.equal(called, false);
+    assert.equal(refused.status, 200);
+    assert.equal(refused.answer, ASK_REFUSAL);
+    assert.equal(refused.refused, true);
+    assert.equal(refused.calledModel, false);
   });
 
   it("reads the client address from the edge header", () => {

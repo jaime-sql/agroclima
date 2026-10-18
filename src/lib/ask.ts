@@ -1,3 +1,4 @@
+import { createHash, timingSafeEqual } from "node:crypto";
 import { formatWeekday } from "./format.ts";
 import type { OpenAIEnv } from "./openai.ts";
 import {
@@ -28,9 +29,12 @@ export {
   ASK_UNAVAILABLE,
   askRefusalResult,
   askUserContent,
+  askDayLabel,
   askValidationAnswer,
   completeAskQuestion,
   costHeaders,
+  diagnosisMeaning,
+  DIAGNOSIS_LEVEL_MEANINGS,
   isAskRefusal,
   limitSentences,
   readTokenCount,
@@ -58,7 +62,9 @@ export const ASK_OTHER_CHIPS = [
 
 export type AskBackend = "blaxel" | "direct";
 
-export type AskAnswer = AskResult & { backend: AskBackend };
+export type AskAnswer = AskResult & { backend: AskBackend | null };
+
+export const ASK_BACKEND_UNAVAILABLE = "El servicio de preguntas no respondió.";
 
 export type AskEnv = OpenAIEnv & {
   blaxelAskUrl?: string;
@@ -105,11 +111,41 @@ export function allowAsk(ip: string, now = Date.now()): boolean {
   return true;
 }
 
+export function readAskForce(header: (name: string) => string | null): {
+  forceBackend: string | null;
+  evalToken: string | null;
+} {
+  return {
+    forceBackend: header("x-agroclima-force-backend"),
+    evalToken: header("x-agroclima-eval-token"),
+  };
+}
+
+/** Honor a force header only when the eval token matches BLAXEL_API_KEY. Otherwise return null. */
+export function forcedAskBackend(
+  forceHeader: string | null | undefined,
+  evalToken: string | null | undefined,
+  blaxelApiKey: string | null | undefined,
+): AskBackend | null {
+  const secret = blaxelApiKey ?? "";
+  if (!secret.trim()) return null;
+  if (!sameSecret(evalToken ?? "", secret)) return null;
+  const force = (forceHeader ?? "").trim();
+  if (force === "direct" || force === "blaxel") return force;
+  return null;
+}
+
+function sameSecret(token: string, secret: string): boolean {
+  const left = createHash("sha256").update(token).digest();
+  const right = createHash("sha256").update(secret).digest();
+  return timingSafeEqual(left, right);
+}
+
 export function askHeaders(result: AskAnswer): Headers {
   const headers = new Headers({
     "Cache-Control": "no-store",
-    "X-Agroclima-Backend": result.backend,
   });
+  if (result.backend) headers.set("X-Agroclima-Backend", result.backend);
   for (const [name, value] of Object.entries(costHeaders(result))) {
     headers.set(name, value);
   }
@@ -122,6 +158,8 @@ export async function answerQuestion(options: {
   ip: string;
   now?: number;
   fetchImpl?: typeof fetch;
+  forceBackend?: string | null;
+  evalToken?: string | null;
 }): Promise<AskAnswer> {
   const parsed = sanitizeAskBody(options.body);
   if (!parsed.ok) {
@@ -134,16 +172,46 @@ export async function answerQuestion(options: {
 
   if (shouldRefuseAsk(parsed.question)) return direct(askRefusalResult());
 
+  const forced = forcedAskBackend(options.forceBackend, options.evalToken, options.env.blaxelApiKey);
+  if (forced === "direct") {
+    return direct(await completeAsk(parsed.question, parsed.grounding, options));
+  }
+  if (forced === "blaxel") {
+    const hosted = await askBlaxel(parsed.question, parsed.grounding, options.env, options.fetchImpl);
+    return hosted ?? blaxelUnavailable();
+  }
+
   const hosted = await askBlaxel(parsed.question, parsed.grounding, options.env, options.fetchImpl);
   if (hosted) return hosted;
+  return direct(await completeAsk(parsed.question, parsed.grounding, options));
+}
 
-  const result = await completeAskQuestion({
-    question: parsed.question,
-    grounding: parsed.grounding,
+function completeAsk(
+  question: string,
+  grounding: AskGrounding,
+  options: { env: AskEnv; fetchImpl?: typeof fetch },
+): Promise<AskResult> {
+  return completeAskQuestion({
+    question,
+    grounding,
     env: options.env,
     fetchImpl: options.fetchImpl,
   });
-  return direct(result);
+}
+
+function blaxelUnavailable(): AskAnswer {
+  return {
+    ok: false,
+    status: 502,
+    answer: ASK_BACKEND_UNAVAILABLE,
+    error: "backend_unavailable",
+    refused: false,
+    calledModel: false,
+    latencyMs: 0,
+    promptTokens: null,
+    completionTokens: null,
+    backend: null,
+  };
 }
 
 function direct(result: AskResult): AskAnswer {
