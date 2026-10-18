@@ -3,135 +3,200 @@
     "id": "ahuachapan",
     "name": "Ahuachapán",
     "department": "Ahuachapán",
-    "lat": 13.963,
-    "lon": -89.87,
-    "elevation_m": 716,
-    "source": "Open Admin Data SV01001001 (https://openadmindata.org/api/v1/sv/municipality.json); elevation Open-Meteo DEM"
+    "lat": 13.855,
+    "lon": -89.835,
+    "elevation_m": 1290,
+    "coord_type": "slope_point",
+    "source": "Existing AgroClima coffee-zone point; ISC denominación de origen Apaneca-Ilamatepec"
   },
   {
-    "id": "apaneca",
+    "id": "apaneca-ahuachapan",
     "name": "Apaneca",
     "department": "Ahuachapán",
-    "lat": 13.848,
-    "lon": -89.79,
-    "elevation_m": 1391,
-    "source": "Open Admin Data SV01001002 (https://openadmindata.org/api/v1/sv/municipality.json); elevation Open-Meteo DEM"
+    "lat": 13.858822222,
+    "lon": -89.803980555,
+    "elevation_m": 1463,
+    "coord_type": "town_centre",
+    "source": "Wikidata P625, cross-checked with GeoNames; ISC denominación de origen Apaneca-Ilamatepec"
   },
   {
-    "id": "atiquizaya",
-    "name": "Atiquizaya",
+    "id": "concepcion-de-ataco-ahuachapan",
+    "name": "Concepción de Ataco",
     "department": "Ahuachapán",
-    "lat": 13.956,
-    "lon": -89.731,
-    "elevation_m": 759,
-    "source": "Open Admin Data SV01002001 (https://openadmindata.org/api/v1/sv/municipality.json); elevation Open-Meteo DEM"
+    "lat": 13.870338888,
+    "lon": -89.8509,
+    "elevation_m": 1255,
+    "coord_type": "town_centre",
+    "source": "Wikidata P625, cross-checked with GeoNames; ISC denominación de origen Apaneca-Ilamatepec"
   },
   {
     "id": "chalatenango",
     "name": "Chalatenango",
     "department": "Chalatenango",
-    "lat": 14.042,
-    "lon": -88.937,
-    "elevation_m": 391,
-    "source": "Open Admin Data SV03003004 (https://openadmindata.org/api/v1/sv/municipality.json); elevation Open-Meteo DEM"
+    "lat": 14.33,
+    "lon": -89.16,
+    "elevation_m": 1237,
+    "coord_type": "slope_point",
+    "source": "Existing AgroClima coffee-zone point; ISC denominación de origen Alotepec-Metapán"
   },
   {
-    "id": "la-palma",
+    "id": "la-palma-chalatenango",
     "name": "La Palma",
     "department": "Chalatenango",
-    "lat": 14.296,
-    "lon": -89.177,
-    "elevation_m": 940,
-    "source": "Open Admin Data SV03002002 (https://openadmindata.org/api/v1/sv/municipality.json); elevation Open-Meteo DEM"
+    "lat": 14.317291666,
+    "lon": -89.170480555,
+    "elevation_m": 1003,
+    "coord_type": "town_centre",
+    "source": "Wikidata P625, cross-checked with GeoNames; ISC denominación de origen Alotepec-Metapán"
   },
   {
-    "id": "santa-tecla",
+    "id": "san-fernando-chalatenango",
+    "name": "San Fernando",
+    "department": "Chalatenango",
+    "lat": 14.307897222,
+    "lon": -89.024352777,
+    "elevation_m": 990,
+    "coord_type": "town_centre",
+    "source": "Wikidata P625, cross-checked with GeoNames; ISC denominación de origen Alotepec-Metapán"
+  },
+  {
+    "id": "san-ignacio-chalatenango",
+    "name": "San Ignacio",
+    "department": "Chalatenango",
+    "lat": 14.338713888,
+    "lon": -89.178491666,
+    "elevation_m": 1005,
+    "coord_type": "town_centre",
+    "source": "Wikidata P625, cross-checked with GeoNames; ISC denominación de origen Alotepec-Metapán"
+  },
+  {
+    "id": "comasagua-la-libertad",
+    "name": "Comasagua",
+    "department": "La Libertad",
+    "lat": 13.637302777,
+    "lon": -89.376808333,
+    "elevation_m": 1075,
+    "coord_type": "town_centre",
+    "source": "Wikidata P625, cross-checked with GeoNames; ISC denominación de origen Bálsamo-Quezaltepec"
+  },
+  {
+    "id": "jayaque-la-libertad",
+    "name": "Jayaque",
+    "department": "La Libertad",
+    "lat": 13.674086111,
+    "lon": -89.438041666,
+    "elevation_m": 992,
+    "coord_type": "town_centre",
+    "source": "Wikidata P625, cross-checked with GeoNames; ISC denominación de origen Bálsamo-Quezaltepec"
+  },
+  {
+    "id": "santa-tecla-la-libertad",
     "name": "Santa Tecla",
     "department": "La Libertad",
-    "lat": 13.627,
-    "lon": -89.3,
-    "elevation_m": 779,
-    "source": "Open Admin Data SV05006002 (https://openadmindata.org/api/v1/sv/municipality.json); elevation Open-Meteo DEM"
+    "lat": 13.673722222,
+    "lon": -89.288597222,
+    "elevation_m": 927,
+    "coord_type": "town_centre",
+    "source": "Wikidata P625, cross-checked with GeoNames; ISC denominación de origen Bálsamo-Quezaltepec"
   },
   {
-    "id": "san-francisco-gotera",
-    "name": "San Francisco Gotera",
+    "id": "talnique-la-libertad",
+    "name": "Talnique",
+    "department": "La Libertad",
+    "lat": 13.667311111,
+    "lon": -89.407963888,
+    "elevation_m": 976,
+    "coord_type": "town_centre",
+    "source": "Wikidata P625, cross-checked with GeoNames; ISC denominación de origen Bálsamo-Quezaltepec"
+  },
+  {
+    "id": "tepecoyo-la-libertad",
+    "name": "Tepecoyo",
+    "department": "La Libertad",
+    "lat": 13.700705555,
+    "lon": -89.4657,
+    "elevation_m": 792,
+    "coord_type": "town_centre",
+    "source": "Wikidata P625, cross-checked with GeoNames; ISC denominación de origen Bálsamo-Quezaltepec"
+  },
+  {
+    "id": "perquin-morazan",
+    "name": "Perquín",
     "department": "Morazán",
-    "lat": 13.67,
-    "lon": -88.083,
-    "elevation_m": 210,
-    "source": "Open Admin Data SV08002010 (https://openadmindata.org/api/v1/sv/municipality.json); elevation Open-Meteo DEM"
+    "lat": 13.958488888,
+    "lon": -88.161375,
+    "elevation_m": 1229,
+    "coord_type": "town_centre",
+    "source": "Wikidata P625, cross-checked with GeoNames; ISC denominación de origen Cacahuatique"
   },
   {
-    "id": "chinameca",
-    "name": "Chinameca",
-    "department": "San Miguel",
-    "lat": 13.474,
-    "lon": -88.331,
-    "elevation_m": 1181,
-    "source": "Open Admin Data SV09003001 (https://openadmindata.org/api/v1/sv/municipality.json); elevation Open-Meteo DEM"
-  },
-  {
-    "id": "ciudad-barrios",
-    "name": "Ciudad Barrios",
-    "department": "San Miguel",
-    "lat": 13.749,
-    "lon": -88.272,
-    "elevation_m": 867,
-    "source": "Open Admin Data SV09002003 (https://openadmindata.org/api/v1/sv/municipality.json); elevation Open-Meteo DEM"
-  },
-  {
-    "id": "san-vicente",
-    "name": "San Vicente",
-    "department": "San Vicente",
-    "lat": 13.556,
-    "lon": -88.726,
-    "elevation_m": 320,
-    "source": "Open Admin Data SV11002003 (https://openadmindata.org/api/v1/sv/municipality.json); elevation Open-Meteo DEM"
-  },
-  {
-    "id": "chalchuapa",
-    "name": "Chalchuapa",
-    "department": "Santa Ana",
-    "lat": 14.011,
-    "lon": -89.689,
-    "elevation_m": 689,
-    "source": "Open Admin Data SV12004002 (https://openadmindata.org/api/v1/sv/municipality.json); elevation Open-Meteo DEM"
-  },
-  {
-    "id": "metapan",
-    "name": "Metapán",
-    "department": "Santa Ana",
-    "lat": 14.31,
-    "lon": -89.402,
-    "elevation_m": 622,
-    "source": "Open Admin Data SV12003002 (https://openadmindata.org/api/v1/sv/municipality.json); elevation Open-Meteo DEM"
+    "id": "san-fernando-morazan",
+    "name": "San Fernando",
+    "department": "Morazán",
+    "lat": 13.961519444,
+    "lon": -88.197872222,
+    "elevation_m": 985,
+    "coord_type": "town_centre",
+    "source": "Wikidata P625, cross-checked with GeoNames; ISC denominación de origen Cacahuatique"
   },
   {
     "id": "santa-ana",
     "name": "Santa Ana",
     "department": "Santa Ana",
-    "lat": 13.956,
-    "lon": -89.558,
-    "elevation_m": 757,
-    "source": "Open Admin Data SV12001001 (https://openadmindata.org/api/v1/sv/municipality.json); elevation Open-Meteo DEM"
+    "lat": 13.88,
+    "lon": -89.61,
+    "elevation_m": 1432,
+    "coord_type": "slope_point",
+    "source": "Existing AgroClima coffee-zone point; ISC denominación de origen Apaneca-Ilamatepec"
   },
   {
-    "id": "juayua",
+    "id": "juayua-sonsonate",
     "name": "Juayúa",
     "department": "Sonsonate",
-    "lat": 13.859,
-    "lon": -89.701,
-    "elevation_m": 1179,
-    "source": "Open Admin Data SV13003001 (https://openadmindata.org/api/v1/sv/municipality.json); elevation Open-Meteo DEM"
+    "lat": 13.843197222,
+    "lon": -89.746475,
+    "elevation_m": 1038,
+    "coord_type": "town_centre",
+    "source": "Wikidata P625, cross-checked with GeoNames; ISC denominación de origen Apaneca-Ilamatepec"
   },
   {
-    "id": "berlin",
+    "id": "salcoatitan-sonsonate",
+    "name": "Salcoatitán",
+    "department": "Sonsonate",
+    "lat": 13.829922222,
+    "lon": -89.757566666,
+    "elevation_m": 1041,
+    "coord_type": "town_centre",
+    "source": "Wikidata P625, cross-checked with GeoNames; ISC denominación de origen Apaneca-Ilamatepec"
+  },
+  {
+    "id": "alegria-usulutan",
+    "name": "Alegría",
+    "department": "Usulután",
+    "lat": 13.507963888,
+    "lon": -88.489433333,
+    "elevation_m": 1150,
+    "coord_type": "town_centre",
+    "source": "Wikidata P625, cross-checked with GeoNames; ISC denominación de origen Tecapa-Chinameca"
+  },
+  {
+    "id": "berlin-usulutan",
     "name": "Berlín",
     "department": "Usulután",
-    "lat": 13.515,
-    "lon": -88.592,
-    "elevation_m": 375,
-    "source": "Open Admin Data SV14002002 (https://openadmindata.org/api/v1/sv/municipality.json); elevation Open-Meteo DEM"
+    "lat": 13.497102777,
+    "lon": -88.530319444,
+    "elevation_m": 1012,
+    "coord_type": "town_centre",
+    "source": "Wikidata P625, cross-checked with GeoNames; ISC denominación de origen Tecapa-Chinameca"
+  },
+  {
+    "id": "santiago-de-maria-usulutan",
+    "name": "Santiago de María",
+    "department": "Usulután",
+    "lat": 13.482194444,
+    "lon": -88.465266666,
+    "elevation_m": 892,
+    "coord_type": "town_centre",
+    "source": "Wikidata P625, cross-checked with GeoNames; ISC denominación de origen Tecapa-Chinameca"
   }
 ]

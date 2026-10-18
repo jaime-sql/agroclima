@@ -5,6 +5,10 @@ import locations from "../data/locations.json" with { type: "json" };
  * lat/lon come from each row's source. elevation_m is optional and is not sent
  * to the forecast. This file does not rank soil, pH, or planting suitability.
  */
+export const COORD_TYPES = ["town_centre", "slope_point"] as const;
+
+export type CoordType = (typeof COORD_TYPES)[number];
+
 export type LocationRecord = {
   id: string;
   name: string;
@@ -12,6 +16,7 @@ export type LocationRecord = {
   lat: number;
   lon: number;
   elevation_m?: number;
+  coord_type: CoordType;
   source: string;
 };
 
@@ -30,6 +35,7 @@ export type Place = {
   latitude: number;
   longitude: number;
   elevation: number | null;
+  coordType: CoordType;
   source: string;
 };
 
@@ -40,6 +46,7 @@ export const PLACES: Place[] = LOCATION_RECORDS.map((record) => ({
   latitude: record.lat,
   longitude: record.lon,
   elevation: typeof record.elevation_m === "number" ? record.elevation_m : null,
+  coordType: record.coord_type,
   source: record.source,
 }));
 
@@ -102,6 +109,9 @@ export function locationRecordErrors(records: readonly LocationRecord[]): string
     if (!recordText(record.name).trim()) errors.push(`${label}: name vacío`);
     if (!recordText(record.department).trim()) errors.push(`${label}: department vacío`);
     if (!recordText(record.source).trim()) errors.push(`${label}: source vacío`);
+    if (!COORD_TYPES.includes(record.coord_type)) {
+      errors.push(`${label}: coord_type inválido`);
+    }
     if (
       typeof record.lat !== "number" ||
       !Number.isFinite(record.lat) ||
