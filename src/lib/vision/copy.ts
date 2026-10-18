@@ -33,6 +33,11 @@ export function coffeeZoneLabel(placeName: string): string {
   return `Zona cafetalera de ${placeName}`;
 }
 
+/** Name on the GPS card for the nearest listed place. Pending Designer confirmation. */
+export function gpsForecastLabel(placeName: string): string {
+  return `Pronóstico de ${placeName}`;
+}
+
 export type RiskCoordType = "town_centre" | "slope_point";
 
 /** Subtitle for the coordinate the forecast actually used. */

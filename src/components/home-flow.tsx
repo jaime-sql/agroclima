@@ -27,6 +27,7 @@ import {
   GEO_DENIED_COPY,
   RETRY_LABEL,
   coffeeZoneLabel,
+  gpsForecastLabel,
   riskSourceNote,
   riskStripSubtitle,
   showsActionPlan,
@@ -485,6 +486,9 @@ function FotoStep({
   const municipalityValue = matches.some((place) => place.id === placeId) ? placeId : "";
 
   const worstLine = pinCard && risk ? pinCardLine(risk.days) : null;
+  const gpsLine = gpsRisk ? pinCardLine(gpsRisk.days) : null;
+  const nearestName =
+    gpsView?.kind === "near" ? (placeById(gpsView.highlightId)?.name ?? null) : null;
 
   return (
     <>
@@ -503,13 +507,21 @@ function FotoStep({
       {gpsView?.kind === "far" && gpsRisk ? (
         <div className="flex flex-col gap-3">
           <h2 className="text-2xl font-semibold">{gpsView.title}</h2>
+          {gpsLine ? <p className="text-lg font-semibold">{gpsLine}</p> : null}
           <RiskPanel risk={gpsRisk} loading={false} failed={false} showPlan={false} subtitle="Toque un día" />
           <p className="text-lg text-[#78716c]">{gpsView.note}</p>
         </div>
       ) : null}
       {gpsView?.kind === "near" && gpsRisk ? (
         <div className="flex flex-col gap-3">
-          <RiskPanel risk={gpsRisk} loading={false} failed={false} showPlan={false} subtitle="Toque un día" />
+          {gpsLine ? <p className="text-lg font-semibold">{gpsLine}</p> : null}
+          <RiskPanel
+            risk={gpsRisk}
+            loading={false}
+            failed={false}
+            showPlan={false}
+            subtitle={nearestName ? gpsForecastLabel(nearestName) : "Toque un día"}
+          />
           <p className="text-lg">{gpsView.gridNote}</p>
         </div>
       ) : null}

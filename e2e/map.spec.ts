@@ -3,8 +3,8 @@ import path from "node:path";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { project } from "../src/lib/map/cluster.ts";
 import { RISK_CUTOFF_FOOTER } from "../src/lib/risk/assess.ts";
-import { MUNICIPALITY_CENTRE_NOTE } from "../src/lib/risk/gps.ts";
-import { RISK_ZONE_NOTE } from "../src/lib/vision/copy.ts";
+import { FAR_GPS_NOTE, MUNICIPALITY_CENTRE_NOTE, farGpsTitle } from "../src/lib/risk/gps.ts";
+import { gpsForecastLabel, RISK_ZONE_NOTE } from "../src/lib/vision/copy.ts";
 import { MIXED_LEVELS, type FixtureLevel } from "./mixed-levels.ts";
 import { PLACES } from "../src/lib/places.ts";
 
@@ -360,6 +360,85 @@ test("mixed fixture shows A, M and B pins and a mixed cluster", async ({ page })
     expect(pin?.label, id).toContain(level);
   }
   await map.screenshot({ path: "e2e/output/mixed-pins-390.png" });
+});
+
+function gpsWeek(elevation: number) {
+  return {
+    ok: true,
+    place: { id: "punto", name: "Punto de la cuadrícula más cercano" },
+    elevation_m: elevation,
+    available: true,
+    timezone: "America/El_Salvador",
+    footer: RISK_CUTOFF_FOOTER,
+    plan: {
+      fungicideClasses: ["triazol"],
+      doseNote: "dosis según etiqueta / su agrónomo",
+      nextDryWindow: null,
+    },
+    days: dates.map((date) => ({
+      date,
+      level: "alto",
+      reason: "Humedad o lluvia algunas horas.",
+      score: 4,
+      wetHours: 10,
+      tmax: 24,
+      rain: 1,
+      warmWetHours: 8,
+      optWetHours: 2,
+      rainDay: false,
+      latencyBand: true,
+      consecutiveBonus: false,
+    })),
+  };
+}
+
+async function installGps(page: Page, elevation: number) {
+  await page.route("**://*.openstreetmap.org/**", (route) => route.abort());
+  await page.route("**/api/risk**", async (route) => {
+    const url = new URL(route.request().url());
+    if (url.pathname.endsWith("/map")) {
+      await route.fulfill({ json: { ok: true, places: [] } });
+      return;
+    }
+    if (url.searchParams.has("lat")) {
+      await route.fulfill({ json: gpsWeek(elevation) });
+      return;
+    }
+    await route.fulfill({ status: 400, json: { ok: false, error: "unknown_place" } });
+  });
+}
+
+test("gps near Santa Tecla names that place and the worst line", async ({ page, context }) => {
+  mkdirSync("e2e/output", { recursive: true });
+  await context.grantPermissions(["geolocation"]);
+  await context.setGeolocation({ latitude: 13.674, longitude: -89.289 });
+  await installGps(page, 927);
+  await page.setViewportSize({ width: 390, height: 800 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Usar mi ubicación" }).click();
+  const card = page.locator("div.flex.flex-col.gap-3").filter({
+    has: page.getByRole("heading", { name: "Riesgo de roya esta semana" }),
+  });
+  await expect(card.getByText(gpsForecastLabel("Santa Tecla"))).toBeVisible();
+  await expect(card.getByText("Toda la semana: alto")).toBeVisible();
+  await expect(card.getByText("Punto de la cuadrícula más cercano")).toHaveCount(0);
+  await card.screenshot({ path: "e2e/output/gps-card-390.png" });
+});
+
+test("gps far from every pin keeps the location title and the worst line", async ({ page, context }) => {
+  await context.grantPermissions(["geolocation"]);
+  await context.setGeolocation({ latitude: 13.48, longitude: -88.18 });
+  await installGps(page, 812);
+  await page.setViewportSize({ width: 390, height: 800 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Usar mi ubicación" }).click();
+  const card = page.locator("div.flex.flex-col.gap-3").filter({
+    has: page.getByRole("heading", { name: "Riesgo de roya esta semana" }),
+  });
+  await expect(card.getByRole("heading", { name: farGpsTitle(812) })).toBeVisible();
+  await expect(card.getByText(FAR_GPS_NOTE)).toBeVisible();
+  await expect(card.getByText("Toda la semana: alto")).toBeVisible();
+  await expect(card.getByText(/Pronóstico de /)).toHaveCount(0);
 });
 
 test("the production build cannot load the level fixture", () => {

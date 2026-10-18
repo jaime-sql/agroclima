@@ -12,6 +12,7 @@ import {
   SIN_DATOS_CARD,
   SIN_DATOS_MARK,
   SIN_DATOS_WORD,
+  gpsForecastLabel,
   riskSourceNote,
   riskStripSubtitle,
   showsActionPlan,
@@ -71,6 +72,7 @@ describe("diagnosis", () => {
     );
     assert.equal(RISK_ZONE_NOTE, "Clima de una zona cafetalera cercana, no de su finca");
     assert.equal(riskSourceNote("slope_point"), RISK_ZONE_NOTE);
+    assert.equal(gpsForecastLabel("Santa Tecla"), "Pronóstico de Santa Tecla");
     assert.equal(showsActionPlan("unavailable", true), false);
     assert.equal(showsActionPlan("failed", true), false);
     assert.equal(showsActionPlan("offline", true), false);
