@@ -32,7 +32,7 @@ export type DayAssessment = {
   score: number;
   /** Wet hours in the scored local day. Null when that day was not scored. */
   wetHours: number | null;
-  /** Max of the same local-day hours, °C. Null when that day was not scored. */
+  /** Scored daily max (`temperature_2m_max`), °C. Null when that day was not scored. */
   tmax: number | null;
   /** Sum of precipitation on those same hours, mm. Null when that day was not scored. */
   rain: number | null;
