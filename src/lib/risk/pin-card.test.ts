@@ -96,7 +96,22 @@ describe("pin card line", () => {
     const source = readFileSync("src/components/home-flow.tsx", "utf8");
     const calls = source.match(/pinCardLine\([^)]*\)/g) ?? [];
     assert.deepEqual(calls, ["pinCardLine(risk.days)", "pinCardLine(gpsRisk.days)"]);
+    assert.match(source, /const worstLine = risk \? pinCardLine\(risk\.days\) : null/);
+    assert.equal(/pinCard &&/.test(source), false);
     assert.equal(source.includes("Peor día"), false);
     assert.equal(source.includes("Toda la semana"), false);
+  });
+
+  it("gives a pin tap and the municipio picker the same line for the same days", () => {
+    const levels: RiskLevel[] = ["bajo", "medio", "medio", "alto", "bajo", "medio", "bajo"];
+    const week = DATES.map((date, index) => ({ date, level: levels[index] }));
+    const pin = pinCardLine(week);
+    const picker = pinCardLine(week.map((day) => ({ ...day })));
+    assert.equal(pin, picker);
+    assert.equal(picker, "Peor día: Miércoles");
+
+    const uniform = days(() => "medio");
+    assert.equal(pinCardLine(uniform), pinCardLine(uniform.map((day) => ({ ...day }))));
+    assert.equal(pinCardLine(uniform), "Toda la semana: medio");
   });
 });

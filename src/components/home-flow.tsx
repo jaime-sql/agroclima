@@ -77,7 +77,6 @@ export function HomeFlow() {
   const [gpsView, setGpsView] = useState<GpsScreen | null>(null);
   const [gpsRisk, setGpsRisk] = useState<RiskView | null>(null);
   const [gpsState, setGpsState] = useState<"idle" | "loading" | "failed">("idle");
-  const [pinCard, setPinCard] = useState<MapPinSummary | null>(null);
 
   useEffect(() => {
     return () => {
@@ -285,7 +284,6 @@ export function HomeFlow() {
           gpsRisk={gpsRisk}
           gpsState={gpsState}
           highlightId={gpsView?.kind === "near" ? gpsView.highlightId : null}
-          pinCard={pinCard}
           coordType={place?.coordType ?? null}
           risk={risk}
           riskState={riskState}
@@ -296,7 +294,6 @@ export function HomeFlow() {
             const current = placeById(placeId);
             if (current && current.department !== value) {
               setPlaceId("");
-              setPinCard(null);
               setRisk(null);
             }
           }}
@@ -305,23 +302,20 @@ export function HomeFlow() {
             const visible = filterPlacesByName(placesInDepartment(department), value);
             if (placeId && !visible.some((item) => item.id === placeId)) {
               setPlaceId("");
-              setPinCard(null);
             }
           }}
           onPlace={(id) => {
             setPlaceId(id);
             setMunicipalityQuery("");
-            setPinCard(null);
             clearGps();
             void loadRisk(id);
           }}
-          onPickPin={(id, pin) => {
+          onPickPin={(id) => {
             const chosen = placeById(id);
             if (!chosen) return;
             setPlaceId(id);
             setDepartment(chosen.department);
             setMunicipalityQuery("");
-            setPinCard(pin);
             clearGps();
             void loadRisk(id);
           }}
@@ -441,7 +435,6 @@ function FotoStep({
   gpsRisk,
   gpsState,
   highlightId,
-  pinCard,
   coordType,
   risk,
   riskState,
@@ -468,7 +461,6 @@ function FotoStep({
   gpsRisk: RiskView | null;
   gpsState: "idle" | "loading" | "failed";
   highlightId: string | null;
-  pinCard: MapPinSummary | null;
   coordType: "town_centre" | "slope_point" | null;
   risk: RiskView | null;
   riskState: "idle" | "loading" | "failed";
@@ -484,7 +476,7 @@ function FotoStep({
   const matches = filterPlacesByName(placesInDepartment(department), municipalityQuery);
   const municipalityValue = matches.some((place) => place.id === placeId) ? placeId : "";
 
-  const worstLine = pinCard && risk ? pinCardLine(risk.days) : null;
+  const worstLine = risk ? pinCardLine(risk.days) : null;
   const gpsLine = gpsRisk ? pinCardLine(gpsRisk.days) : null;
 
   return (
