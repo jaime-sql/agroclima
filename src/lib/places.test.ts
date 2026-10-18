@@ -55,7 +55,12 @@ describe("locations file", () => {
     assert.equal(placeById("chalatenango")?.elevation, 1237);
     assert.equal(placeById("apaneca-ahuachapan")?.name, "Apaneca");
     assert.equal(placeById("apaneca-ahuachapan")?.coordType, "town_centre");
-    assert.equal(placeById("apaneca-ahuachapan")?.latitude, 13.858822222);
+    assert.equal(
+      LOCATION_RECORDS.find((record) => record.id === "apaneca-ahuachapan")?.lat,
+      13.858822222,
+    );
+    assert.equal(placeById("apaneca-ahuachapan")?.latitude, 13.859);
+    assert.equal(placeById("apaneca-ahuachapan")?.longitude, -89.804);
     assert.equal(placeById("san-fernando-chalatenango")?.name, "San Fernando");
     assert.equal(placeById("san-fernando-chalatenango")?.department, "Chalatenango");
     assert.equal(placeById("san-fernando-morazan")?.name, "San Fernando");

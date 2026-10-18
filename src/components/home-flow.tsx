@@ -515,6 +515,12 @@ function FotoStep({
         </div>
       ) : null}
       <PlaceMap highlightId={highlightId} onPick={onPickPin} />
+      <a
+        href="#lista-municipios"
+        className="flex min-h-14 items-center text-lg font-semibold text-[#1E5B2A] underline"
+      >
+        Ver lista
+      </a>
       {gpsView ? null : risk || riskState !== "idle" ? (
         <div className="flex flex-col gap-3">
           {pinCard?.level && pinCard.day ? (

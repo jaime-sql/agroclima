@@ -1,8 +1,11 @@
 import locations from "../data/locations.json" with { type: "json" };
+import { roundCoordinate } from "./risk/gps.ts";
 
 /**
- * Municipal coordinates for the picker. The only list is src/data/locations.json.
- * lat/lon come from each row's source. elevation_m is optional and is not sent
+ * Municipal coordinates for the picker and the map. The only list is
+ * src/data/locations.json. Each place stores one forecast coordinate: the
+ * sourced lat/lon rounded to 3 decimals. Pins, place-id lookups, and lat/lon
+ * lookups of that point all use it. elevation_m is optional and is not sent
  * to the forecast. This file does not rank soil, pH, or planting suitability.
  */
 export const COORD_TYPES = ["town_centre", "slope_point"] as const;
@@ -43,8 +46,8 @@ export const PLACES: Place[] = LOCATION_RECORDS.map((record) => ({
   id: record.id,
   name: record.name,
   department: record.department,
-  latitude: record.lat,
-  longitude: record.lon,
+  latitude: roundCoordinate(record.lat),
+  longitude: roundCoordinate(record.lon),
   elevation: typeof record.elevation_m === "number" ? record.elevation_m : null,
   coordType: record.coord_type,
   source: record.source,

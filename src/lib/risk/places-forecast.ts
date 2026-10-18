@@ -27,13 +27,16 @@ export function clearPlaceMapCache(): void {
 
 const LEVEL_RANK: Record<RiskLevel, number> = { bajo: 1, medio: 2, alto: 3 };
 
-/** Soonest day that reaches the week's highest level. Null when no day was scored. */
+/** Earliest day that reaches the week's highest level. Null when no day was scored. */
 export function worstDay(days: WeekAssessment["days"]): { level: RiskLevel; date: string } | null {
   let best: { level: RiskLevel; date: string; rank: number } | null = null;
   for (const day of days) {
     if (!day.level) continue;
     const rank = LEVEL_RANK[day.level];
-    if (!best || rank > best.rank) best = { level: day.level, date: day.date, rank };
+    const earlierTie = best !== null && rank === best.rank && day.date < best.date;
+    if (!best || rank > best.rank || earlierTie) {
+      best = { level: day.level, date: day.date, rank };
+    }
   }
   return best ? { level: best.level, date: best.date } : null;
 }

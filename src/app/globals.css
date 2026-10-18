@@ -27,8 +27,8 @@
   }
 }
 
+/* Do not set height here. An unlayered percentage beats Tailwind's h-80 and, on an auto-height parent, resolves to 0. */
 .leaflet-container {
-  height: 100%;
   width: 100%;
   z-index: 0;
 }

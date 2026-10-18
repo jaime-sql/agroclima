@@ -1,20 +1,12 @@
-import { readFileSync } from "node:fs";
+import { PLACES } from "../src/lib/places.ts";
 import { fetchForecast } from "../src/lib/weather/openmeteo.ts";
 
-type LocationRow = {
-  name?: string;
-  lat: number;
-  lon: number;
-};
-
-const rows = JSON.parse(readFileSync("src/data/locations.json", "utf8")) as LocationRow[];
 const failures: string[] = [];
 
-for (const row of rows) {
-  const name = row.name?.trim() || "(sin nombre)";
-  const loaded = await fetchForecast(row.lat, row.lon);
+for (const place of PLACES) {
+  const loaded = await fetchForecast(place.latitude, place.longitude);
   const days = loaded.ok ? (loaded.forecast.daily?.time.length ?? 0) : 0;
-  if (!loaded.ok || days !== 7) failures.push(name);
+  if (!loaded.ok || days !== 7) failures.push(place.name);
 }
 
 if (failures.length > 0) {
@@ -22,4 +14,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log(`All ${rows.length} locations returned a 7-day forecast.`);
+console.log(`All ${PLACES.length} locations returned a 7-day forecast.`);

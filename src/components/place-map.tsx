@@ -22,7 +22,7 @@ function pinHtml(level: RiskLevel | null, day: string | null, highlighted: boole
   const color = level ? PIN_COLOR[level] : "#57534e";
   const ring = highlighted ? "box-shadow:0 0 0 3px #111;" : "";
   const dayLine = day ? `<span style="display:block;font-size:11px;font-weight:600;">${day}</span>` : "";
-  return `<span style="display:block;min-width:52px;border-radius:12px;background:${color};color:#fff;text-align:center;padding:4px 6px;font:700 13px/1.1 ui-sans-serif,system-ui,sans-serif;${ring}">${label}${dayLine}</span>`;
+  return `<span style="display:block;box-sizing:border-box;width:88px;white-space:nowrap;border-radius:12px;background:${color};color:#fff;text-align:center;padding:4px 6px;font:700 13px/1.15 ui-sans-serif,system-ui,sans-serif;${ring}">${label}${dayLine}</span>`;
 }
 
 export function PlaceMap({
@@ -59,10 +59,13 @@ export function PlaceMap({
         .map(element, {
           maxBounds: leaflet.latLngBounds([12.7, -90.6], [14.7, -87.2]),
           maxBoundsViscosity: 1,
-          minZoom: 8,
+          minZoom: 7,
           maxZoom: 16,
         })
         .setView([13.8, -88.9], 8);
+      const bounds = leaflet.latLngBounds(
+        PLACES.map((place) => [place.latitude, place.longitude] as [number, number]),
+      );
       leaflet
         .tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
           attribution:
@@ -78,8 +81,8 @@ export function PlaceMap({
         const icon = leaflet.divIcon({
           className: "leaflet-div-icon agroclima-pin",
           html: pinHtml(summary.level, summary.day, highlightRef.current === id),
-          iconSize: [64, 36],
-          iconAnchor: [32, 18],
+          iconSize: [88, 42],
+          iconAnchor: [44, 21],
         });
         marker.setIcon(icon);
       }
@@ -92,8 +95,8 @@ export function PlaceMap({
             icon: leaflet.divIcon({
               className: "leaflet-div-icon agroclima-pin",
               html: pinHtml(null, null, false),
-              iconSize: [64, 36],
-              iconAnchor: [32, 18],
+              iconSize: [88, 42],
+              iconAnchor: [44, 21],
             }),
             keyboard: true,
             title: place.name,
@@ -105,6 +108,9 @@ export function PlaceMap({
         });
         markers.current.set(place.id, marker);
       }
+
+      map.invalidateSize();
+      map.fitBounds(bounds, { padding: [48, 26] });
 
       void fetch("/api/risk/map")
         .then((response) => response.json())
@@ -134,8 +140,8 @@ export function PlaceMap({
           leaflet.divIcon({
             className: "leaflet-div-icon agroclima-pin",
             html: pinHtml(summary.level, summary.day, highlightId === id),
-            iconSize: [64, 36],
-            iconAnchor: [32, 18],
+            iconSize: [88, 42],
+            iconAnchor: [44, 21],
           }),
         );
       }
@@ -146,7 +152,7 @@ export function PlaceMap({
     <div
       id="mapa"
       ref={host}
-      className="h-80 w-full overflow-hidden rounded-2xl"
+      className="h-80 min-h-[20rem] w-full overflow-hidden rounded-2xl"
       role="application"
       aria-label="Mapa de El Salvador. Toque un municipio."
       tabIndex={-1}
