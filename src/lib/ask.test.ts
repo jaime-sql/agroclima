@@ -1,9 +1,7 @@
 import assert from "node:assert/strict";
 import { beforeEach, describe, it } from "node:test";
 import {
-  ASK_BACKEND_UNAVAILABLE,
   ASK_EMPTY,
-  ASK_FAILED,
   ASK_MAX_QUESTION_CHARS,
   ASK_MAX_REPLY_TOKENS,
   askChips,
@@ -18,8 +16,13 @@ import {
   ASK_TOO_LONG,
   ASK_UNAVAILABLE,
   answerQuestion,
+  askGuardHeaders,
+  ASK_RESET_RETRY_MS,
+  ASK_TOTAL_BUDGET_MS,
+  ASK_TRY_AGAIN,
   BLAXEL_ASK_TIMEOUT_MS,
   BLAXEL_WORKSPACE,
+  OPENAI_ASK_TIMEOUT_MS,
   clientIp,
   costHeaders,
   DIAGNOSIS_LEVEL_MEANINGS,
@@ -107,7 +110,11 @@ describe("ask AgroClima", () => {
       },
     });
     assert.equal(result.ok, true);
-    assert.equal(result.answer, "El lunes el riesgo es alto. Consulte a su agrónomo.");
+    assert.equal(
+      result.answer,
+      "El lunes el riesgo es alto. Consulte a su agrónomo. Horas húmedas ese día: 11.",
+    );
+    assert.equal(result.wetHoursAppended, true);
     assert.equal(model, "gpt-4.1-mini");
     assert.equal(maxTokens, ASK_MAX_REPLY_TOKENS);
     assert.equal(system, ASK_SYSTEM_PROMPT);
@@ -263,7 +270,13 @@ describe("ask AgroClima", () => {
       ip: "203.0.113.20",
       fetchImpl: async () => new Response("no", { status: 500 }),
     });
-    assert.equal(result.answer, ASK_FAILED);
+    assert.equal(result.answer, ASK_TRY_AGAIN);
+    assert.equal(result.status, 502);
+    assert.equal(askHeaders(result).get("X-Agroclima-Backend"), "direct");
+    assert.equal(askHeaders(result).get("X-Agroclima-First-Attempt"), "http_500");
+    assert.equal(askHeaders(result).get("X-Agroclima-Attempts"), "1");
+    assert.equal(askHeaders(result).get("X-Agroclima-Retries"), "0");
+    assert.equal(askHeaders(result).get("X-Agroclima-Wet-Hours-Appended"), "false");
     assert.equal(result.calledModel, true);
     const headers = costHeaders(result);
     assert.match(headers["X-Agroclima-Latency-Ms"] ?? "", /^\d+$/);
@@ -330,6 +343,9 @@ describe("ask AgroClima", () => {
 
   it("keeps the direct OpenAI call when Blaxel is unset", async () => {
     assert.equal(BLAXEL_ASK_TIMEOUT_MS, 8000);
+    assert.equal(OPENAI_ASK_TIMEOUT_MS, 8000);
+    assert.equal(ASK_TOTAL_BUDGET_MS, 20_000);
+    assert.equal(ASK_RESET_RETRY_MS, 1_500);
     assert.equal(BLAXEL_WORKSPACE, "hackatonhf2025");
     const urls: string[] = [];
     const result = await answerQuestion({
@@ -340,7 +356,7 @@ describe("ask AgroClima", () => {
         urls.push(String(input));
         const headers = init?.headers as Record<string, string>;
         assert.equal(headers["X-Blaxel-Authorization"], undefined);
-        assert.equal(init?.signal, undefined);
+        assert.equal(init?.signal instanceof AbortSignal, true);
         return Response.json({
           choices: [{ message: { content: "Revise la etiqueta." } }],
           usage: { prompt_tokens: 6, completion_tokens: 3 },
@@ -352,6 +368,10 @@ describe("ask AgroClima", () => {
     assert.equal(result.ok, true);
     const headers = askHeaders(result);
     assert.equal(headers.get("X-Agroclima-Backend"), "direct");
+    assert.equal(headers.get("X-Agroclima-Attempts"), "1");
+    assert.equal(headers.get("X-Agroclima-First-Attempt"), "ok");
+    assert.equal(headers.get("X-Agroclima-Retries"), "0");
+    assert.equal(headers.get("X-Agroclima-Wet-Hours-Appended"), "false");
     assert.equal(headers.get("X-Agroclima-Prompt-Tokens"), "6");
     assert.equal(headers.get("Cache-Control"), "no-store");
     let directCalls = 0;
@@ -507,6 +527,10 @@ describe("ask AgroClima", () => {
       assert.equal(result.error, "refused", question);
       assert.deepEqual(costHeaders(result), {});
       assert.equal(askHeaders(result).get("X-Agroclima-Backend"), "direct");
+      assert.equal(askHeaders(result).get("X-Agroclima-Attempts"), "0");
+      assert.equal(askHeaders(result).get("X-Agroclima-First-Attempt"), "none");
+      assert.equal(askHeaders(result).get("X-Agroclima-Retries"), "0");
+      assert.equal(askHeaders(result).get("X-Agroclima-Wet-Hours-Appended"), "false");
     }
   });
 
@@ -639,10 +663,14 @@ describe("ask AgroClima", () => {
     });
     assert.deepEqual(seen, [blaxelUrl]);
     assert.equal(forcedBlaxel.status, 502);
-    assert.equal(forcedBlaxel.error, "backend_unavailable");
-    assert.equal(forcedBlaxel.answer, ASK_BACKEND_UNAVAILABLE);
-    assert.equal(forcedBlaxel.backend, null);
-    assert.equal(askHeaders(forcedBlaxel).get("X-Agroclima-Backend"), null);
+    assert.equal(forcedBlaxel.error, "failed");
+    assert.equal(forcedBlaxel.answer, ASK_TRY_AGAIN);
+    assert.equal(forcedBlaxel.backend, "blaxel");
+    assert.equal(askHeaders(forcedBlaxel).get("X-Agroclima-Backend"), "blaxel");
+    assert.equal(askHeaders(forcedBlaxel).get("X-Agroclima-Attempts"), "1");
+    assert.equal(askHeaders(forcedBlaxel).get("X-Agroclima-First-Attempt"), "http_503");
+    assert.equal(askHeaders(forcedBlaxel).get("X-Agroclima-Retries"), "0");
+    assert.equal(askHeaders(forcedBlaxel).get("X-Agroclima-Wet-Hours-Appended"), "false");
     assert.equal(JSON.stringify(forcedBlaxel).includes(secret), false);
 
     seen.length = 0;
@@ -732,7 +760,13 @@ describe("ask AgroClima", () => {
     });
     assert.equal(missingUrlCalled, false);
     assert.equal(missingUrl.status, 502);
-    assert.equal(missingUrl.error, "backend_unavailable");
+    assert.equal(missingUrl.error, "failed");
+    assert.equal(missingUrl.answer, ASK_TRY_AGAIN);
+    assert.equal(missingUrl.backend, "blaxel");
+    assert.equal(askHeaders(missingUrl).get("X-Agroclima-Backend"), "blaxel");
+    assert.equal(askHeaders(missingUrl).get("X-Agroclima-Attempts"), "1");
+    assert.equal(askHeaders(missingUrl).get("X-Agroclima-First-Attempt"), "error");
+    assert.equal(askHeaders(missingUrl).get("X-Agroclima-Retries"), "0");
     assert.equal(JSON.stringify(missingUrl).includes(secret), false);
 
     assert.equal(forcedAskBackend("Direct", secret, secret), null);
@@ -777,4 +811,303 @@ describe("ask AgroClima", () => {
     );
     assert.equal(clientIp(() => null), "local");
   });
+
+  it("sets eval headers even when no backend ran", () => {
+    const headers = askGuardHeaders();
+    assert.equal(headers.get("X-Agroclima-Backend"), "direct");
+    assert.equal(headers.get("X-Agroclima-Attempts"), "0");
+    assert.equal(headers.get("X-Agroclima-First-Attempt"), "none");
+    assert.equal(headers.get("X-Agroclima-Retries"), "0");
+    assert.equal(headers.get("X-Agroclima-Wet-Hours-Appended"), "false");
+    assert.equal(headers.get("Cache-Control"), "no-store");
+  });
+
+  it("appends wet hours when a fake model states the risk and omits the count", async () => {
+    const question = "¿Cómo va el riesgo del lunes?";
+    const logs = captureLogs();
+    try {
+      const result = await answerQuestion({
+        body: {
+          question,
+          place: "Zona cafetalera de Santa Ana",
+          days: [riskDay("2026-10-12", "alto", 6)],
+        },
+        env: { apiKey: "secret" },
+        ip: "203.0.113.140",
+        fetchImpl: async () =>
+          Response.json({
+            choices: [{ message: { content: "El lunes el riesgo es alto." } }],
+            usage: { prompt_tokens: 4, completion_tokens: 3 },
+          }),
+      });
+      assert.equal(result.answer, "El lunes el riesgo es alto. Horas húmedas ese día: 6.");
+      assert.equal(result.answer.split("Horas húmedas ese día:").length, 2);
+      assert.equal(result.wetHoursAppended, true);
+      assert.equal(result.backend, "direct");
+      const headers = askHeaders(result);
+      assert.equal(headers.get("X-Agroclima-Wet-Hours-Appended"), "true");
+      assert.equal(headers.get("X-Agroclima-Retries"), "0");
+      assert.equal(headers.get("X-Agroclima-Attempts"), "1");
+      assert.equal(headers.get("X-Agroclima-First-Attempt"), "ok");
+      const printed = logs.lines().join("\n");
+      assert.match(printed, /"event":"ask_wet_hours_appended","backend":"direct"/);
+      assert.equal(printed.includes(question), false);
+      assert.equal(printed.includes("Horas húmedas"), false);
+      assert.equal(printed.includes("El lunes"), false);
+    } finally {
+      logs.restore();
+    }
+  });
+
+  it("does not append a second wet-hours sentence when the model already stated the count", async () => {
+    const logs = captureLogs();
+    try {
+      const result = await answerQuestion({
+        body: {
+          question: "¿Cómo va el riesgo del lunes?",
+          place: "Zona cafetalera de Santa Ana",
+          days: [riskDay("2026-10-12", "alto", 6)],
+        },
+        env: { apiKey: "secret" },
+        ip: "203.0.113.141",
+        fetchImpl: async () =>
+          Response.json({
+            choices: [{ message: { content: "El lunes el riesgo es alto, con 6 horas húmedas." } }],
+          }),
+      });
+      assert.equal(result.answer, "El lunes el riesgo es alto, con 6 horas húmedas.");
+      assert.equal(result.wetHoursAppended, false);
+      assert.equal(askHeaders(result).get("X-Agroclima-Wet-Hours-Appended"), "false");
+      assert.equal(logs.lines().some((line) => line.includes("ask_wet_hours_appended")), false);
+    } finally {
+      logs.restore();
+    }
+  });
+
+  it("appends each discussed day's wet hours when the answer covers the week", async () => {
+    const result = await answerQuestion({
+      body: {
+        question: "¿Cómo está el riesgo esta semana?",
+        place: "Zona cafetalera de Santa Ana",
+        days: [riskDay("2026-10-12", "alto", 6), riskDay("2026-10-13", "medio", 3)],
+      },
+      env: { apiKey: "secret" },
+      ip: "203.0.113.142",
+      fetchImpl: async () =>
+        Response.json({
+          choices: [{ message: { content: "Esta semana el riesgo es alto." } }],
+        }),
+    });
+    assert.equal(result.wetHoursAppended, true);
+    assert.match(result.answer, /Horas húmedas: lunes 12 oct, 6; martes 13 oct, 3\./);
+    assert.equal(askHeaders(result).get("X-Agroclima-Wet-Hours-Appended"), "true");
+    const named = await answerQuestion({
+      body: {
+        question: "¿Cómo está el riesgo esta semana?",
+        place: "Zona cafetalera de Santa Ana",
+        days: [riskDay("2026-10-12", "alto", 6), riskDay("2026-10-13", "medio", 3)],
+      },
+      env: { apiKey: "secret" },
+      ip: "203.0.113.143",
+      fetchImpl: async () =>
+        Response.json({
+          choices: [
+            {
+              message: {
+                content: "El lunes tuvo 6 horas húmedas y el martes 3 horas húmedas. El riesgo de la semana es alto.",
+              },
+            },
+          ],
+        }),
+    });
+    assert.equal(named.wetHoursAppended, false);
+    assert.equal(named.answer.includes("Horas húmedas:"), false);
+  });
+
+  it("returns 502 when the backend throws and the fallback throws", async () => {
+    const question = "pregunta-que-no-va-al-log";
+    const logs = captureLogs();
+    try {
+      const result = await answerQuestion({
+        body: { question, place: "Zona cafetalera de Santa Ana", days: [] },
+        env: {
+          apiKey: "secret",
+          blaxelAskUrl: "https://ask.blaxel.test/agroclima-ask",
+          blaxelApiKey: "blaxel-secret",
+        },
+        ip: "203.0.113.144",
+        fetchImpl: async () => {
+          throw new Error("backend exploded");
+        },
+      });
+      assert.equal(result.status, 502);
+      assert.equal(result.error, "failed");
+      assert.equal(result.answer, ASK_TRY_AGAIN);
+      assert.equal(result.backend, "direct");
+      const headers = askHeaders(result);
+      assert.equal(headers.get("X-Agroclima-Backend"), "direct");
+      assert.equal(headers.get("X-Agroclima-Attempts"), "2");
+      assert.equal(headers.get("X-Agroclima-First-Attempt"), "error");
+      assert.equal(headers.get("X-Agroclima-Retries"), "0");
+      assert.equal(headers.get("X-Agroclima-Wet-Hours-Appended"), "false");
+      const printed = logs.lines().join("\n");
+      assert.match(printed, /"event":"ask_backend","backend":"blaxel","ms":\d+,"outcome":"error"/);
+      assert.match(printed, /"event":"ask_backend","backend":"direct","ms":\d+,"outcome":"error"/);
+      assert.equal(printed.includes(question), false);
+      assert.equal(printed.includes("backend exploded"), false);
+    } finally {
+      logs.restore();
+    }
+  });
+
+  it("returns 504 when a backend hangs past the timeout and the fallback hangs too", async () => {
+    let aborts = 0;
+    const started = Date.now();
+    const result = await answerQuestion({
+      body: { question: "¿El lunes es alto?", place: "Zona cafetalera de Santa Ana", days: [] },
+      env: {
+        apiKey: "secret",
+        blaxelAskUrl: "https://ask.blaxel.test/agroclima-ask",
+        blaxelApiKey: "blaxel-secret",
+      },
+      ip: "203.0.113.145",
+      budgets: { blaxelMs: 40, openaiMs: 40, totalMs: 500 },
+      fetchImpl: (_input, init) =>
+        new Promise((_resolve, reject) => {
+          const signal = init?.signal;
+          if (!signal) {
+            reject(new Error("missing abort signal"));
+            return;
+          }
+          const onAbort = () => {
+            aborts += 1;
+            reject(new DOMException("The operation was aborted", "AbortError"));
+          };
+          if (signal.aborted) onAbort();
+          else signal.addEventListener("abort", onAbort, { once: true });
+        }),
+    });
+    assert.equal(aborts, 2);
+    assert.equal(Date.now() - started < 2_000, true);
+    assert.equal(result.status, 504);
+    assert.equal(result.error, "timeout");
+    assert.equal(result.answer, ASK_TRY_AGAIN);
+    assert.equal(result.backend, "direct");
+    const headers = askHeaders(result);
+    assert.equal(headers.get("X-Agroclima-Backend"), "direct");
+    assert.equal(headers.get("X-Agroclima-Attempts"), "2");
+    assert.equal(headers.get("X-Agroclima-First-Attempt"), "timeout");
+    assert.equal(headers.get("X-Agroclima-Retries"), "0");
+    assert.equal(headers.get("X-Agroclima-Wet-Hours-Appended"), "false");
+  });
+
+  it("returns 502 when Blaxel fails and the OpenAI fallback fails", async () => {
+    const urls: string[] = [];
+    const result = await answerQuestion({
+      body: { question: "¿El lunes es alto?", place: "Zona cafetalera de Santa Ana", days: [] },
+      env: {
+        apiKey: "secret",
+        blaxelAskUrl: "https://ask.blaxel.test/agroclima-ask",
+        blaxelApiKey: "blaxel-secret",
+      },
+      ip: "203.0.113.146",
+      fetchImpl: async (input) => {
+        urls.push(String(input));
+        if (String(input).includes("blaxel")) return new Response("down", { status: 503 });
+        return new Response("down", { status: 500 });
+      },
+    });
+    assert.deepEqual(urls, [
+      "https://ask.blaxel.test/agroclima-ask",
+      "https://api.openai.com/v1/chat/completions",
+    ]);
+    assert.equal(result.status, 502);
+    assert.equal(result.answer, ASK_TRY_AGAIN);
+    assert.equal(result.backend, "direct");
+    const headers = askHeaders(result);
+    assert.equal(headers.get("X-Agroclima-Backend"), "direct");
+    assert.equal(headers.get("X-Agroclima-Attempts"), "2");
+    assert.equal(headers.get("X-Agroclima-First-Attempt"), "http_503");
+    assert.equal(headers.get("X-Agroclima-Retries"), "0");
+    assert.equal(headers.get("X-Agroclima-Wet-Hours-Appended"), "false");
+  });
+
+  it("retries a fast connection reset once and reports attempts, first attempt, and retries", async () => {
+    const question = "pregunta-unica-no-loguear";
+    let blaxelCalls = 0;
+    const logs = captureLogs();
+    try {
+      const result = await answerQuestion({
+        body: {
+          question,
+          place: "Zona cafetalera de Santa Ana",
+          days: [riskDay("2026-10-12", "alto", 6)],
+        },
+        env: {
+          apiKey: "secret",
+          blaxelAskUrl: "https://ask.blaxel.test/agroclima-ask",
+          blaxelApiKey: "blaxel-secret",
+        },
+        ip: "203.0.113.147",
+        fetchImpl: async (input) => {
+          if (!String(input).includes("blaxel")) throw new Error("openai should not run");
+          blaxelCalls += 1;
+          if (blaxelCalls === 1) {
+            const error = new Error("socket hang up");
+            (error as { code?: string }).code = "ECONNRESET";
+            throw error;
+          }
+          return Response.json({
+            ok: true,
+            answer: "El lunes el riesgo es alto, con 6 horas húmedas.",
+            refused: false,
+            promptTokens: 3,
+            completionTokens: 2,
+            latencyMs: 9,
+          });
+        },
+      });
+      assert.equal(blaxelCalls, 2);
+      assert.equal(result.ok, true);
+      assert.equal(result.backend, "blaxel");
+      assert.equal(result.attempts, 2);
+      assert.equal(result.retries, 1);
+      assert.equal(result.firstAttempt, "reset");
+      assert.equal(result.wetHoursAppended, false);
+      assert.equal(result.answer.includes("Horas húmedas ese día"), false);
+      const headers = askHeaders(result);
+      assert.equal(headers.get("X-Agroclima-Attempts"), "2");
+      assert.equal(headers.get("X-Agroclima-First-Attempt"), "reset");
+      assert.equal(headers.get("X-Agroclima-Retries"), "1");
+      assert.equal(headers.get("X-Agroclima-Backend"), "blaxel");
+      assert.equal(headers.get("X-Agroclima-Wet-Hours-Appended"), "false");
+      const printed = logs.lines().join("\n");
+      assert.match(printed, /"event":"ask_retry","backend":"blaxel"/);
+      assert.match(printed, /"event":"ask_backend","backend":"blaxel","ms":\d+,"outcome":"reset"/);
+      assert.match(printed, /"event":"ask_backend","backend":"blaxel","ms":\d+,"outcome":"ok"/);
+      assert.equal(printed.includes(question), false);
+      assert.equal(printed.includes("horas húmedas"), false);
+      assert.equal(printed.includes("blaxel-secret"), false);
+    } finally {
+      logs.restore();
+    }
+  });
 });
+
+function riskDay(date: string, level: "alto" | "medio" | "bajo", wetHours: number) {
+  return { date, level, score: 4, wetHours, tmax: 24, rain: 1, reason: "clima tibio" };
+}
+
+function captureLogs(): { lines: () => string[]; restore: () => void } {
+  const lines: string[] = [];
+  const original = console.log;
+  console.log = (...args: unknown[]) => {
+    lines.push(args.map((part) => (typeof part === "string" ? part : JSON.stringify(part))).join(" "));
+  };
+  return {
+    lines: () => lines,
+    restore: () => {
+      console.log = original;
+    },
+  };
+}

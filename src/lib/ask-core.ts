@@ -9,6 +9,7 @@ export const ASK_UNAVAILABLE =
 export const ASK_TOO_LONG = "La pregunta es muy larga. Escríbala más corta.";
 export const ASK_EMPTY = "Escriba su pregunta.";
 export const ASK_FAILED = "No pudimos responder. Pregúntele a su agrónomo.";
+export const ASK_TRY_AGAIN = "No pude responder. Intente otra vez.";
 export const ASK_INVALID = "No pudimos leer la pregunta. Intente otra vez.";
 export const ASK_REFUSAL =
   "No puedo responder eso con seguridad. Consulte con su agrónomo.";
@@ -54,6 +55,14 @@ export type AskGrounding = {
   diagnosis: { headline: string; detail: string; meaning?: string } | null;
 };
 
+export type AskAttemptOutcome =
+  | "ok"
+  | "reset"
+  | "timeout"
+  | "error"
+  | "none"
+  | `http_${number}`;
+
 export type AskResult = {
   ok: boolean;
   status: number;
@@ -66,7 +75,9 @@ export type AskResult = {
     | "failed"
     | "invalid"
     | "refused"
-    | "backend_unavailable";
+    | "backend_unavailable"
+    | "timeout";
+  attemptOutcome?: AskAttemptOutcome;
   refused: boolean;
   calledModel: boolean;
   latencyMs: number;
@@ -247,14 +258,86 @@ export function askUserContent(question: string, grounding: AskGrounding): strin
   return JSON.stringify({ datos: grounding, pregunta: question });
 }
 
+const RESET_CODES = new Set([
+  "ECONNRESET",
+  "ECONNREFUSED",
+  "EPIPE",
+  "ENETRESET",
+  "UND_ERR_SOCKET",
+]);
+
+const RISK_WORD = /\b(alt[oa]|medi[oa]|baj[oa]|riesgo)\b/;
+const WEEK_WORD = /\b(semana|semanal)\b/;
+const WET_CUE = /\bhoras?\s+humedas?\b/;
+
+/** Connection reset, timeout, or any other fetch failure. Timeout wins when this call aborted. */
+export function classifyFetchFailure(err: unknown, aborted: boolean): "reset" | "timeout" | "error" {
+  if (aborted) return "timeout";
+  const chain = errorChain(err);
+  for (const item of chain) {
+    const name = readField(item, "name");
+    const code = readField(item, "code");
+    if (
+      name === "TimeoutError" ||
+      code === "ETIMEDOUT" ||
+      code === "UND_ERR_CONNECT_TIMEOUT" ||
+      code === "UND_ERR_HEADERS_TIMEOUT" ||
+      code === "UND_ERR_BODY_TIMEOUT"
+    ) {
+      return "timeout";
+    }
+  }
+  for (const item of chain) {
+    const code = readField(item, "code");
+    const message = readField(item, "message").toLowerCase();
+    if (RESET_CODES.has(code)) return "reset";
+    if (
+      message.includes("econnreset") ||
+      message.includes("connection reset") ||
+      message.includes("socket hang up") ||
+      message.includes("other side closed") ||
+      message.includes("econnrefused") ||
+      message.includes("connection refused")
+    ) {
+      return "reset";
+    }
+  }
+  return "error";
+}
+
+/**
+ * When an answer states a risk level for a day or the week and omits that day's
+ * wet-hour count, append one sentence built from the grounding.
+ */
+export function ensureWetHours(
+  answer: string,
+  grounding: AskGrounding,
+): { answer: string; appended: boolean } {
+  if (isAskRefusal(answer)) return { answer, appended: false };
+  const folded = foldAskText(answer);
+  if (!RISK_WORD.test(folded)) return { answer, appended: false };
+  const days = grounding.days.filter((day) => typeof day.wetHours === "number");
+  if (days.length === 0) return { answer, appended: false };
+  const named = days.filter((day) => mentionsDay(folded, day));
+  const targets = named.length > 0 ? named : WEEK_WORD.test(folded) ? days : [];
+  if (targets.length === 0) return { answer, appended: false };
+  const missing = targets.filter((day) => !dayWetHoursMentioned(folded, day, targets));
+  if (missing.length === 0) return { answer, appended: false };
+  const sentence = wetHoursSentence(missing, targets.length === 1);
+  const trimmed = answer.trim();
+  const gap = /[.!?…]$/.test(trimmed) ? " " : ". ";
+  return { answer: `${trimmed}${gap}${sentence}`, appended: true };
+}
+
 export async function completeAskQuestion(options: {
   question: string;
   grounding: AskGrounding;
   env: OpenAIEnv;
   fetchImpl?: typeof fetch;
+  signal?: AbortSignal;
 }): Promise<AskResult> {
   const openai = resolveOpenAI(options.env);
-  if (!openai) return quiet(503, ASK_UNAVAILABLE, "unavailable");
+  if (!openai) return { ...quiet(503, ASK_UNAVAILABLE, "unavailable"), attemptOutcome: "none" };
 
   const fetchImpl = options.fetchImpl ?? fetch;
   const started = Date.now();
@@ -275,30 +358,50 @@ export async function completeAskQuestion(options: {
           { role: "user", content: askUserContent(options.question, options.grounding) },
         ],
       }),
+      signal: options.signal,
     });
-  } catch {
-    return called(502, ASK_FAILED, "failed", Date.now() - started, null, null);
+  } catch (err) {
+    const outcome = classifyFetchFailure(err, options.signal?.aborted === true);
+    const status = outcome === "timeout" ? 504 : 502;
+    return {
+      ...called(
+        status,
+        ASK_TRY_AGAIN,
+        outcome === "timeout" ? "timeout" : "failed",
+        Date.now() - started,
+        null,
+        null,
+      ),
+      attemptOutcome: outcome,
+    };
   }
 
   const latencyMs = Date.now() - started;
   if (!response.ok) {
-    return called(502, ASK_FAILED, "failed", latencyMs, null, null);
+    return {
+      ...called(502, ASK_TRY_AGAIN, "failed", latencyMs, null, null),
+      attemptOutcome: `http_${response.status}`,
+    };
   }
 
   let payload: unknown;
   try {
     payload = await response.json();
   } catch {
-    return called(502, ASK_FAILED, "failed", latencyMs, null, null);
+    return { ...called(502, ASK_TRY_AGAIN, "failed", latencyMs, null, null), attemptOutcome: "error" };
   }
   const completion = readCompletion(payload);
   if (!completion.text) {
-    return called(502, ASK_FAILED, "failed", latencyMs, completion.promptTokens, completion.completionTokens);
+    return {
+      ...called(502, ASK_TRY_AGAIN, "failed", latencyMs, completion.promptTokens, completion.completionTokens),
+      attemptOutcome: "error",
+    };
   }
   if (isAskRefusal(completion.text)) {
     return {
       ...called(200, ASK_REFUSAL, "refused", latencyMs, completion.promptTokens, completion.completionTokens),
       refused: true,
+      attemptOutcome: "ok",
     };
   }
   return {
@@ -310,7 +413,70 @@ export async function completeAskQuestion(options: {
     latencyMs,
     promptTokens: completion.promptTokens,
     completionTokens: completion.completionTokens,
+    attemptOutcome: "ok",
   };
+}
+
+function foldAskText(text: string): string {
+  return text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+function mentionsDay(folded: string, day: AskDay): boolean {
+  const parts = foldAskText(day.label).split(" ");
+  const weekday = parts[0] ?? "";
+  if (weekday.length >= 4 && new RegExp(`\\b${escapeRegExp(weekday)}\\b`).test(folded)) return true;
+  if (parts.length >= 3 && folded.includes(`${parts[1]} ${parts[2]}`)) return true;
+  return folded.includes(day.date);
+}
+
+function dayWetHoursMentioned(foldedAnswer: string, day: AskDay, targets: AskDay[]): boolean {
+  if (typeof day.wetHours !== "number") return true;
+  const count = day.wetHours;
+  return foldedAnswer.split(/(?<=[.!?…])\s+/).some((sentence) => {
+    if (!WET_CUE.test(sentence) || !mentionsCount(sentence, count)) return false;
+    if (mentionsDay(sentence, day)) return true;
+    return !targets.some((other) => other.date !== day.date && mentionsDay(sentence, other));
+  });
+}
+
+function mentionsCount(sentence: string, count: number): boolean {
+  const raw = Number.isInteger(count) ? String(count) : String(count);
+  return new RegExp(`(?<!\\d)${escapeRegExp(raw)}(?!\\d)`).test(sentence);
+}
+
+function wetHoursSentence(missing: AskDay[], singleTarget: boolean): string {
+  if (singleTarget && missing.length === 1) {
+    return `Horas húmedas ese día: ${hoursValue(missing[0]?.wetHours)}.`;
+  }
+  const parts = missing.map((day) => `${day.label}, ${hoursValue(day.wetHours)}`);
+  return `Horas húmedas: ${parts.join("; ")}.`;
+}
+
+function hoursValue(value: number | null): string {
+  if (typeof value !== "number") return "";
+  return String(value);
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function errorChain(err: unknown): unknown[] {
+  const out: unknown[] = [];
+  const seen = new Set<unknown>();
+  let current: unknown = err;
+  while (current && typeof current === "object" && !seen.has(current)) {
+    seen.add(current);
+    out.push(current);
+    current = (current as { cause?: unknown }).cause;
+  }
+  return out;
+}
+
+function readField(value: unknown, key: "name" | "code" | "message"): string {
+  if (!value || typeof value !== "object" || !(key in value)) return "";
+  const field = (value as Record<string, unknown>)[key];
+  return typeof field === "string" ? field : "";
 }
 
 function quiet(
