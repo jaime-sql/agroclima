@@ -1,0 +1,57 @@
+{
+  "level_lines": {
+    "alto": "Las condiciones de esta semana favorecen la roya. Revise sus hojas hoy.",
+    "medio": "Algunas condiciones pueden favorecer la roya. Revise sus hojas esta semana.",
+    "bajo": "Por ahora las condiciones favorecen poco a la roya. Siga revisando sus hojas."
+  },
+  "list": [
+    {
+      "id": "1",
+      "text": "Revise sus lotes. Así decide a tiempo.",
+      "sources": [
+        { "statement_id": "S07", "label": "ANACAFE (Guatemala)", "url": null },
+        { "statement_id": "S08", "label": "ANACAFE (Guatemala)", "url": null }
+      ],
+      "policy": false
+    },
+    {
+      "id": "2",
+      "text": "Cuide que la sombra deje pasar luz y aire al cafetal.",
+      "sources": [
+        { "statement_id": "S12", "label": "ANACAFE (Guatemala)", "url": null }
+      ],
+      "policy": false
+    },
+    {
+      "id": "3",
+      "text": "La poda da más ventilación a las plantas.",
+      "sources": [
+        { "statement_id": "S17", "label": "CENTA (El Salvador)", "url": null }
+      ],
+      "policy": false
+    },
+    {
+      "id": "4",
+      "text": "Abone según el análisis de suelo.",
+      "sources": [
+        { "statement_id": "S14", "label": "ANACAFE (Guatemala)", "url": null },
+        { "statement_id": "S24", "label": "CENTA (El Salvador)", "url": null }
+      ],
+      "policy": false
+    },
+    {
+      "id": "5",
+      "text": "Antes de decidir cualquier tratamiento, consulte con un técnico de café.",
+      "sources": [],
+      "policy": true
+    }
+  ],
+  "later": {
+    "text": "Al terminar la cosecha, se aconseja iniciar la poda. No se recomienda podar la sombra de febrero a abril.",
+    "sources": [
+      { "statement_id": "S21", "label": "CENTA (El Salvador)", "url": null },
+      { "statement_id": "S15", "label": "CENTA (El Salvador)", "url": null }
+    ]
+  },
+  "footer": "Guía general. No reemplaza a su técnico."
+}

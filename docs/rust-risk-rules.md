@@ -60,16 +60,14 @@ Endpoint `/v1/forecast`, `forecast_days=7` (default), `timezone=America/El_Salva
 | Copper (cobre, hidróxido 50 WP) | 2.8 kg/mz | every 30 d, only if incidence < 5 % | ANACAFE/CEDICAFE trial, https://www.anacafe.org/bcms-media/Files/Download?id=654c4741-7618-41f7-92af-a9ba011d3632 |
 | Triazol (epoxiconazol 12.5 SC) | 405 cc/mz | every 60 d | same + CEDICAFE bulletin, https://www.anacafe.org/uploads/file/89e5afde997541678dc415b7d44fb2d9/Boletin-CEDICAFE-RII-08.pdf |
 | Triazol (ciproconazol 10 SL) / triazol+estrobilurina (ciproconazol+azoxistrobina) | 350 cc/mz | every 60 d | https://www.anacafe.org/bcms-media/Files/Download?id=cb69ac69-b0b8-48c1-ae06-a9ba011fab88 |
-| PROCAFE / MAG El Salvador doses | sin fuente | sin fuente | PROCAFE site did not load; no MAG/PROMECAFE dose doc found tonight |
 Caveat: these are Guatemalan (ANACAFE) research trial doses with brand products, not El Salvador guidance or labels. Recommend the app show class + "dosis según etiqueta / su agrónomo" and cite ANACAFE only as reference. 1 mz ≈ 0.7 ha.
 
 ## 6. Contacts
 | Org | Phone | Web | Status |
 |---|---|---|---|
 | CENTA | (503) 2397-2200, oir@centa.gob.sv; Km 33½ Carretera a Santa Ana, Ciudad Arce | https://www.centa.gob.sv | VERIFIED on https://www.centa.gob.sv/directorio-2/ (2026-10-10) |
-| PROCAFE | (503) 2288-3088 (PBX) | www.procafe.com.sv | NOT VERIFIED: official site returned nothing on 2026-10-10; number only from old PROCAFE bulletins (2006/2011, yumpu) and a commercial directory. Do not ship until confirmed. |
 
 ## 7. Caveats
 1. RH ≥ 90 % proxy is uncalibrated for El Salvador coffee canopies (Sentelhas: local calibration needed); model RH at 2 m ≠ shaded leaf surface.
 2. Weather favourability ≠ disease: inoculum, variety resistance (Catimor/Sarchimor), shade, nutrition and farm management (Avelino 2015) matter as much; the strip is "riesgo del clima", not a diagnosis.
-3. Score bins and spray-window margins are engineering choices on top of cited biology; validate against PROCAFE/MAG before claiming accuracy.
+3. Score bins and spray-window margins are engineering choices on top of cited biology; validate against ISC, CENTA and ANACAFE (Guatemala) before claiming accuracy.

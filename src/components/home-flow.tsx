@@ -16,6 +16,7 @@ import {
   type GpsScreen,
 } from "@/lib/risk/gps";
 import { PlaceMap, type MapPinSummary } from "./place-map";
+import { queHacerHoySpeech, todayRiskLevel } from "@/lib/que-hacer-hoy";
 import { listenScript } from "@/lib/speech";
 import { agronomistSharePayload, canShareFiles, whatsAppLink } from "@/lib/share";
 import {
@@ -33,6 +34,7 @@ import {
 import type { Diagnosis } from "@/lib/vision/diagnose";
 import { AskBox } from "./ask-box";
 import { ListenButton } from "./listen-button";
+import { QueHacerHoy } from "./que-hacer-hoy";
 import { RiskPanel, type RiskView } from "./risk-panel";
 
 type Step = "foto" | "resultado" | "riesgo" | "plan" | "compartir";
@@ -367,6 +369,7 @@ export function HomeFlow() {
             showPlan={riskState === "failed" ? false : showsActionPlan(diagnoseError, planAllowed)}
             onRetry={() => void loadRisk(placeId)}
           />
+          <QueHacerHoy level={todayRiskLevel(risk)} />
           {riskState === "failed" ? (
             <button type="button" className={secondary} onClick={() => void share()}>
               Compartir con mi agrónomo
@@ -695,6 +698,7 @@ function ResultStep({
           onRetake={onRetake}
         />
       ) : null}
+      <QueHacerHoy level={todayRiskLevel(risk)} />
     </div>
   );
 }
@@ -844,7 +848,11 @@ function spokenText(input: {
     : input.riskFailed
       ? `${FORECAST_UNAVAILABLE_TITLE}. ${FORECAST_MISSING_COPY}`
       : null;
-  return listenScript({ result, plan, week }) || "AgroClima";
+  const advice =
+    input.step === "resultado" || input.step === "riesgo"
+      ? queHacerHoySpeech(todayRiskLevel(input.risk))
+      : null;
+  return listenScript({ result, plan, week, advice }) || "AgroClima";
 }
 
 function resultSpeech(
