@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import type { CoordType } from "@/lib/places";
 import {
   FORECAST_MISSING_COPY,
   FORECAST_UNAVAILABLE_TITLE,
   RETRY_LABEL,
-  RISK_ZONE_NOTE,
   SIN_DATOS_MARK,
   SIN_DATOS_WORD,
+  riskSourceNote,
   riskStripSubtitle,
 } from "@/lib/vision/copy";
 import { dayCardReason, formatChipDate, formatSprayWindow, formatWeekday, levelMark, levelWord } from "@/lib/format";
@@ -32,6 +33,7 @@ export function RiskPanel({
   showPlan,
   onRetry,
   subtitle,
+  coordType,
 }: {
   risk: RiskView | null;
   loading: boolean;
@@ -39,6 +41,8 @@ export function RiskPanel({
   showPlan: boolean;
   onRetry?: () => void;
   subtitle?: string;
+  /** Listed place only. GPS omits this and keeps the coffee-zone note plus its own line. */
+  coordType?: CoordType | null;
 }) {
   const [selected, setSelected] = useState(0);
   const days = risk?.days ?? [];
@@ -50,7 +54,7 @@ export function RiskPanel({
         <h2 className="text-2xl font-semibold tracking-tight">Riesgo de roya esta semana</h2>
         {failed && !risk ? null : (
           <p className="mt-1">
-            {risk ? (subtitle ?? riskStripSubtitle(risk.place.name)) : "Toque un día"}
+            {risk ? (subtitle ?? riskStripSubtitle(risk.place.name, coordType)) : "Toque un día"}
           </p>
         )}
       </div>
@@ -126,7 +130,7 @@ export function RiskPanel({
               );
             })}
           </div>
-          <p>{RISK_ZONE_NOTE}</p>
+          <p>{riskSourceNote(coordType)}</p>
           <article className="rounded-2xl bg-white p-4 shadow-sm">
             <h3 className="text-2xl font-semibold">
               {day.level === null

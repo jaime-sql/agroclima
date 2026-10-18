@@ -12,8 +12,11 @@ import {
   SIN_DATOS_CARD,
   SIN_DATOS_MARK,
   SIN_DATOS_WORD,
+  TOWN_CENTRE_NOTE,
+  riskSourceNote,
   riskStripSubtitle,
   showsActionPlan,
+  townCentreLabel,
 } from "./copy.ts";
 import { PLACES } from "../places.ts";
 import { DEFAULT_OPENAI_MODEL } from "../openai.ts";
@@ -68,6 +71,18 @@ describe("diagnosis", () => {
       "Zona cafetalera de Chalatenango · toque un día",
     );
     assert.equal(RISK_ZONE_NOTE, "Clima de una zona cafetalera cercana, no de su finca");
+    assert.equal(riskSourceNote("slope_point"), RISK_ZONE_NOTE);
+    assert.equal(townCentreLabel("Santa Tecla"), "Pronóstico de Santa Tecla");
+    assert.equal(
+      riskStripSubtitle("Santa Tecla", "town_centre"),
+      "Pronóstico de Santa Tecla · toque un día",
+    );
+    assert.equal(
+      TOWN_CENTRE_NOTE,
+      "Pronóstico para el centro del municipio, no para su finca",
+    );
+    assert.equal(riskSourceNote("town_centre"), TOWN_CENTRE_NOTE);
+    assert.equal(riskStripSubtitle("Santa Tecla", "town_centre").includes("Zona cafetalera"), false);
     assert.equal(showsActionPlan("unavailable", true), false);
     assert.equal(showsActionPlan("failed", true), false);
     assert.equal(showsActionPlan("offline", true), false);

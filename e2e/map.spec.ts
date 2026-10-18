@@ -156,9 +156,26 @@ test("every place opens from the 390px map in at most 3 taps", async ({ page }) 
     const card = page.locator("div.flex.flex-col.gap-3").filter({
       has: page.getByRole("heading", { name: "Riesgo de roya esta semana" }),
     });
-    await expect(card.getByText(`Zona cafetalera de ${place.name}`)).toBeVisible();
+    const coffeeNote = "Clima de una zona cafetalera cercana, no de su finca";
+    const centreNote = "Pronóstico para el centro del municipio, no para su finca";
+    if (place.coordType === "town_centre") {
+      await expect(card.getByText(`Pronóstico de ${place.name}`)).toBeVisible();
+      await expect(card.getByText(centreNote)).toHaveCount(1);
+      await expect(card.getByText(coffeeNote)).toHaveCount(0);
+      await expect(card.getByText(/Zona cafetalera/)).toHaveCount(0);
+    } else {
+      await expect(card.getByText(`Zona cafetalera de ${place.name}`)).toBeVisible();
+      await expect(card.getByText(coffeeNote)).toHaveCount(1);
+      await expect(card.getByText(centreNote)).toHaveCount(0);
+    }
     await expect(card.getByText(`Toda la semana: ${MIXED_LEVELS[place.id]}`)).toBeVisible();
     await expect(card.getByRole("button", { name: /riesgo/i })).toHaveCount(7);
+    if (place.id === "santa-tecla-la-libertad") {
+      await card.screenshot({ path: "e2e/output/card-town-centre-390.png" });
+    }
+    if (place.id === "ahuachapan") {
+      await card.screenshot({ path: "e2e/output/card-slope-point-390.png" });
+    }
     if (place.id === "santa-ana") {
       await card.screenshot({ path: "e2e/output/pin-card-390.png" });
     }

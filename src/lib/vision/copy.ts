@@ -31,8 +31,17 @@ export function coffeeZoneLabel(placeName: string): string {
   return `Zona cafetalera de ${placeName}`;
 }
 
-export function riskStripSubtitle(placeName: string): string {
-  return `${coffeeZoneLabel(placeName)} · toque un día`;
+export function townCentreLabel(placeName: string): string {
+  return `Pronóstico de ${placeName}`;
+}
+
+export type RiskCoordType = "town_centre" | "slope_point";
+
+/** Subtitle for the coordinate the forecast actually used. */
+export function riskStripSubtitle(placeName: string, coordType?: RiskCoordType | null): string {
+  const label =
+    coordType === "town_centre" ? townCentreLabel(placeName) : coffeeZoneLabel(placeName);
+  return `${label} · toque un día`;
 }
 
 /** The fungicide plan stays hidden when the leaf was not reviewed. */
@@ -46,6 +55,14 @@ export function showsActionPlan(
 
 export const RISK_ZONE_NOTE =
   "Clima de una zona cafetalera cercana, no de su finca";
+
+export const TOWN_CENTRE_NOTE =
+  "Pronóstico para el centro del municipio, no para su finca";
+
+/** The one source line on a place card. GPS keeps its own notes. */
+export function riskSourceNote(coordType?: RiskCoordType | null): string {
+  return coordType === "town_centre" ? TOWN_CENTRE_NOTE : RISK_ZONE_NOTE;
+}
 
 export const GEO_DENIED_COPY =
   "No pudimos usar su ubicación. Elija su municipio.";

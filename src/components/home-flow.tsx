@@ -12,7 +12,6 @@ import {
 } from "@/lib/places";
 import {
   gpsScreen,
-  municipalityCentreNote,
   type GpsScreen,
 } from "@/lib/risk/gps";
 import { pinCardLine } from "@/lib/risk/pin-card";
@@ -27,8 +26,8 @@ import {
   FORECAST_UNAVAILABLE_TITLE,
   GEO_DENIED_COPY,
   RETRY_LABEL,
-  RISK_ZONE_NOTE,
   coffeeZoneLabel,
+  riskSourceNote,
   riskStripSubtitle,
   showsActionPlan,
 } from "@/lib/vision/copy";
@@ -265,6 +264,7 @@ export function HomeFlow() {
     diagnosing,
     slow,
     placeName: place?.name ?? "",
+    coordType: place?.coordType ?? null,
     risk,
     riskFailed: riskState === "failed",
     planAllowed,
@@ -290,9 +290,7 @@ export function HomeFlow() {
           gpsState={gpsState}
           highlightId={gpsView?.kind === "near" ? gpsView.highlightId : null}
           pinCard={pinCard}
-          centreNote={
-            gpsView ? null : municipalityCentreNote(selection, place?.coordType ?? null)
-          }
+          coordType={place?.coordType ?? null}
           risk={risk}
           riskState={riskState}
           onRiskRetry={() => void loadRisk(placeId)}
@@ -348,6 +346,7 @@ export function HomeFlow() {
           planAllowed={planAllowed}
           risk={risk}
           riskState={riskState}
+          coordType={place?.coordType ?? null}
           onRetry={() => void review()}
           onRisk={() => setStep("riesgo")}
           onRiskRetry={() => void loadRisk(placeId)}
@@ -369,6 +368,7 @@ export function HomeFlow() {
             failed={riskState === "failed"}
             showPlan={riskState === "failed" ? false : showsActionPlan(diagnoseError, planAllowed)}
             onRetry={() => void loadRisk(placeId)}
+            coordType={place?.coordType ?? null}
           />
           <QueHacerHoy level={todayRiskLevel(risk)} />
           {riskState === "failed" ? (
@@ -389,7 +389,13 @@ export function HomeFlow() {
       {step === "plan" && risk ? (
         <>
           <h1 className="text-2xl font-semibold">Su plan</h1>
-          <RiskPanel risk={risk} loading={false} failed={false} showPlan />
+          <RiskPanel
+            risk={risk}
+            loading={false}
+            failed={false}
+            showPlan
+            coordType={place?.coordType ?? null}
+          />
           <AskBox
             place={coffeeZoneLabel(risk.place.name)}
             timezone={risk.timezone}
@@ -444,7 +450,7 @@ function FotoStep({
   gpsState,
   highlightId,
   pinCard,
-  centreNote,
+  coordType,
   risk,
   riskState,
   onDepartment,
@@ -471,7 +477,7 @@ function FotoStep({
   gpsState: "idle" | "loading" | "failed";
   highlightId: string | null;
   pinCard: MapPinSummary | null;
-  centreNote: string | null;
+  coordType: "town_centre" | "slope_point" | null;
   risk: RiskView | null;
   riskState: "idle" | "loading" | "failed";
   onDepartment: (department: string) => void;
@@ -531,8 +537,8 @@ function FotoStep({
             failed={riskState === "failed"}
             showPlan={false}
             onRetry={onRiskRetry}
+            coordType={coordType}
           />
-          {centreNote ? <p className="text-lg">{centreNote}</p> : null}
         </div>
       ) : null}
       <div id="lista-municipios" className="flex flex-col gap-3">
@@ -584,9 +590,6 @@ function FotoStep({
             </option>
           ))}
         </select>
-        {centreNote && !risk && riskState === "idle" ? (
-          <p className="text-lg">{centreNote}</p>
-        ) : null}
         {department !== "" && municipalityQuery.trim() !== "" && matches.length === 0 ? (
           <p role="status">Ningún municipio con ese nombre.</p>
         ) : null}
@@ -645,6 +648,7 @@ function ResultStep({
   planAllowed,
   risk,
   riskState,
+  coordType,
   onRetry,
   onRisk,
   onRiskRetry,
@@ -657,6 +661,7 @@ function ResultStep({
   planAllowed: boolean;
   risk: RiskView | null;
   riskState: "idle" | "loading" | "failed";
+  coordType: "town_centre" | "slope_point" | null;
   onRetry: () => void;
   onRisk: () => void;
   onRiskRetry: () => void;
@@ -687,6 +692,7 @@ function ResultStep({
             failed={riskState === "failed"}
             showPlan={showsActionPlan(diagnoseError, planAllowed)}
             onRetry={onRiskRetry}
+            coordType={coordType}
           />
           <button type="button" className={secondary} onClick={onShare}>
             Compartir con mi agrónomo
@@ -829,6 +835,7 @@ function spokenText(input: {
   diagnosing: boolean;
   slow: boolean;
   placeName: string;
+  coordType: "town_centre" | "slope_point" | null;
   risk: RiskView | null;
   riskFailed: boolean;
   planAllowed: boolean;
@@ -847,7 +854,7 @@ function spokenText(input: {
       ? planSpeech(input.risk)
       : null;
   const week = input.risk
-    ? weekSpeech(input.risk, input.placeName)
+    ? weekSpeech(input.risk, input.placeName, input.coordType)
     : input.riskFailed
       ? `${FORECAST_UNAVAILABLE_TITLE}. ${FORECAST_MISSING_COPY}`
       : null;
@@ -885,11 +892,15 @@ function planSpeech(risk: RiskView): string {
   ].join(" ");
 }
 
-function weekSpeech(risk: RiskView, placeName: string): string {
+function weekSpeech(
+  risk: RiskView,
+  placeName: string,
+  coordType: "town_centre" | "slope_point" | null,
+): string {
   const days = risk.days
     .map((day) =>
       day.level ? `${day.date} ${day.level}. ${dayCardReason(day)}` : `${day.date} sin datos.`,
     )
     .join(" ");
-  return `${riskStripSubtitle(placeName)}. ${RISK_ZONE_NOTE}. ${days}`;
+  return `${riskStripSubtitle(placeName, coordType)}. ${riskSourceNote(coordType)}. ${days}`;
 }
