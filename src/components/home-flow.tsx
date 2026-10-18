@@ -6,10 +6,16 @@ import { downscalePhoto } from "@/lib/photo";
 import {
   departmentNames,
   filterPlacesByName,
-  nearestPlace,
   placeById,
   placesInDepartment,
+  PLACES,
 } from "@/lib/places";
+import {
+  gpsScreen,
+  municipalityCentreNote,
+  type GpsScreen,
+} from "@/lib/risk/gps";
+import { PlaceMap, type MapPinSummary } from "./place-map";
 import { listenScript } from "@/lib/speech";
 import { agronomistSharePayload, canShareFiles, whatsAppLink } from "@/lib/share";
 import {
@@ -66,6 +72,11 @@ export function HomeFlow() {
   const [slow, setSlow] = useState(false);
   const [risk, setRisk] = useState<RiskView | null>(null);
   const [riskState, setRiskState] = useState<"idle" | "loading" | "failed">("idle");
+  const [gpsView, setGpsView] = useState<GpsScreen | null>(null);
+  const [gpsRisk, setGpsRisk] = useState<RiskView | null>(null);
+  const [gpsState, setGpsState] = useState<"idle" | "loading" | "failed">("idle");
+  const [selection, setSelection] = useState<"pin" | "municipality" | null>(null);
+  const [pinCard, setPinCard] = useState<MapPinSummary | null>(null);
 
   useEffect(() => {
     return () => {
@@ -92,22 +103,74 @@ export function HomeFlow() {
     });
   }
 
+  function clearGps() {
+    setGpsView(null);
+    setGpsRisk(null);
+    setGpsState("idle");
+  }
+
   function useMyLocation() {
     if (!navigator.geolocation) {
       setGeoNote(GEO_DENIED_COPY);
       return;
     }
+    setGeoNote(null);
+    setGpsState("loading");
+    setGpsView(null);
+    setGpsRisk(null);
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        const nearest = nearestPlace(position.coords.latitude, position.coords.longitude);
-        setPlaceId(nearest.id);
-        setDepartment(nearest.department);
-        setMunicipalityQuery("");
-        setGeoNote(null);
+        const latitude = position.coords.latitude;
+        const longitude = position.coords.longitude;
+        const early = gpsScreen({ latitude, longitude, elevationM: null, places: PLACES });
+        if (early.kind === "outside") {
+          setGpsView(early);
+          setGpsState("idle");
+          setSelection(null);
+          return;
+        }
+        void loadGps(latitude, longitude);
       },
-      () => setGeoNote(GEO_DENIED_COPY),
-      { timeout: 8000, maximumAge: 60_000 },
+      () => {
+        setGpsState("idle");
+        setGeoNote(GEO_DENIED_COPY);
+      },
+      { timeout: 8000, maximumAge: 0 },
     );
+  }
+
+  async function loadGps(latitude: number, longitude: number) {
+    try {
+      const response = await fetch(
+        `/api/risk?lat=${encodeURIComponent(String(latitude))}&lon=${encodeURIComponent(String(longitude))}`,
+      );
+      const payload = (await response.json()) as
+        | ({ ok: true; elevation_m: number | null } & RiskView)
+        | { ok: false; error?: string };
+      if (!response.ok || !payload.ok) {
+        if (!payload.ok && payload.error === "outside_el_salvador") {
+          setGpsView(gpsScreen({ latitude, longitude, elevationM: null, places: PLACES }));
+          setGpsState("idle");
+          setSelection(null);
+          return;
+        }
+        setGpsState("failed");
+        return;
+      }
+      setGpsView(
+        gpsScreen({
+          latitude,
+          longitude,
+          elevationM: payload.elevation_m,
+          places: PLACES,
+        }),
+      );
+      setGpsRisk(payload);
+      setGpsState("idle");
+      setSelection(null);
+    } catch {
+      setGpsState("failed");
+    }
   }
 
   async function loadRisk(id: string) {
@@ -219,20 +282,55 @@ export function HomeFlow() {
           uploadRef={uploadRef}
           department={department}
           municipalityQuery={municipalityQuery}
+          gpsView={gpsView}
+          gpsRisk={gpsRisk}
+          gpsState={gpsState}
+          highlightId={gpsView?.kind === "near" ? gpsView.highlightId : null}
+          pinCard={pinCard}
+          centreNote={
+            gpsView ? null : municipalityCentreNote(selection, place?.coordType ?? null)
+          }
+          risk={risk}
+          riskState={riskState}
+          onRiskRetry={() => void loadRisk(placeId)}
           onDepartment={(value) => {
             setDepartment(value);
             setMunicipalityQuery("");
             const current = placeById(placeId);
-            if (current && current.department !== value) setPlaceId("");
+            if (current && current.department !== value) {
+              setPlaceId("");
+              setSelection(null);
+              setPinCard(null);
+              setRisk(null);
+            }
           }}
           onMunicipalityQuery={(value) => {
             setMunicipalityQuery(value);
             const visible = filterPlacesByName(placesInDepartment(department), value);
-            if (placeId && !visible.some((item) => item.id === placeId)) setPlaceId("");
+            if (placeId && !visible.some((item) => item.id === placeId)) {
+              setPlaceId("");
+              setSelection(null);
+              setPinCard(null);
+            }
           }}
           onPlace={(id) => {
             setPlaceId(id);
             setMunicipalityQuery("");
+            setSelection("municipality");
+            setPinCard(null);
+            clearGps();
+            void loadRisk(id);
+          }}
+          onPickPin={(id, pin) => {
+            const chosen = placeById(id);
+            if (!chosen) return;
+            setPlaceId(id);
+            setDepartment(chosen.department);
+            setMunicipalityQuery("");
+            setSelection("pin");
+            setPinCard(pin);
+            clearGps();
+            void loadRisk(id);
           }}
           onLocate={useMyLocation}
           onFile={(file) => void takePhoto(file)}
@@ -337,12 +435,22 @@ function FotoStep({
   ready,
   cameraRef,
   uploadRef,
+  gpsView,
+  gpsRisk,
+  gpsState,
+  highlightId,
+  pinCard,
+  centreNote,
+  risk,
+  riskState,
   onDepartment,
   onMunicipalityQuery,
   onPlace,
+  onPickPin,
   onLocate,
   onFile,
   onReview,
+  onRiskRetry,
 }: {
   placeId: string;
   department: string;
@@ -354,53 +462,75 @@ function FotoStep({
   ready: boolean;
   cameraRef: RefObject<HTMLInputElement | null>;
   uploadRef: RefObject<HTMLInputElement | null>;
+  gpsView: GpsScreen | null;
+  gpsRisk: RiskView | null;
+  gpsState: "idle" | "loading" | "failed";
+  highlightId: string | null;
+  pinCard: MapPinSummary | null;
+  centreNote: string | null;
+  risk: RiskView | null;
+  riskState: "idle" | "loading" | "failed";
   onDepartment: (department: string) => void;
   onMunicipalityQuery: (query: string) => void;
   onPlace: (id: string) => void;
+  onPickPin: (id: string, pin: MapPinSummary) => void;
   onLocate: () => void;
   onFile: (file: File | undefined) => void;
   onReview: () => void;
+  onRiskRetry: () => void;
 }) {
   const matches = filterPlacesByName(placesInDepartment(department), municipalityQuery);
   const municipalityValue = matches.some((place) => place.id === placeId) ? placeId : "";
 
+  const chosenName = placeById(placeId)?.name ?? "";
+
   return (
     <>
-      <h1 className="text-2xl font-semibold tracking-tight">
-        Tome una foto de una hoja de café.
-      </h1>
-      <p>Una sola hoja, de cerca, con buena luz.</p>
-      {preview ? (
-        <div
-          role="img"
-          aria-label="Foto de la hoja"
-          className="h-56 w-full rounded-2xl bg-cover bg-center"
-          style={{ backgroundImage: `url("${preview}")` }}
-        />
+      <button type="button" className={primary} onClick={onLocate}>
+        Usar mi ubicación
+      </button>
+      {geoNote ? <p>{geoNote}</p> : null}
+      {gpsState === "loading" ? <p role="status">Cargando el pronóstico…</p> : null}
+      {gpsState === "failed" ? (
+        <div className="flex flex-col gap-3">
+          <h2 className="text-2xl font-semibold">{FORECAST_UNAVAILABLE_TITLE}</h2>
+          <p>{FORECAST_MISSING_COPY}</p>
+        </div>
       ) : null}
-      <input
-        ref={cameraRef}
-        className="sr-only"
-        type="file"
-        accept="image/*"
-        capture="environment"
-        onChange={(event) => onFile(event.target.files?.[0])}
-      />
-      <input
-        ref={uploadRef}
-        className="sr-only"
-        type="file"
-        accept="image/*"
-        onChange={(event) => onFile(event.target.files?.[0])}
-      />
-      <button type="button" className={primary} onClick={() => cameraRef.current?.click()}>
-        Tomar foto de la hoja
-      </button>
-      <button type="button" className={secondary} onClick={() => uploadRef.current?.click()}>
-        Subir foto
-      </button>
-      <div className="flex flex-col gap-3">
-        <p className="text-lg font-semibold">¿Dónde está su finca?</p>
+      {gpsView?.kind === "outside" ? <p>{gpsView.message}</p> : null}
+      {gpsView?.kind === "far" && gpsRisk ? (
+        <div className="flex flex-col gap-3">
+          <h2 className="text-2xl font-semibold">{gpsView.title}</h2>
+          <RiskPanel risk={gpsRisk} loading={false} failed={false} showPlan={false} subtitle="Toque un día" />
+          <p className="text-lg text-[#78716c]">{gpsView.note}</p>
+        </div>
+      ) : null}
+      {gpsView?.kind === "near" && gpsRisk ? (
+        <div className="flex flex-col gap-3">
+          <RiskPanel risk={gpsRisk} loading={false} failed={false} showPlan={false} subtitle="Toque un día" />
+          <p className="text-lg">{gpsView.gridNote}</p>
+        </div>
+      ) : null}
+      <PlaceMap highlightId={highlightId} onPick={onPickPin} />
+      {gpsView ? null : risk || riskState !== "idle" ? (
+        <div className="flex flex-col gap-3">
+          {pinCard?.level && pinCard.day ? (
+            <p className="text-lg font-semibold">
+              {chosenName}: {pinCard.level}, {pinCard.day}
+            </p>
+          ) : null}
+          <RiskPanel
+            risk={risk}
+            loading={riskState === "loading"}
+            failed={riskState === "failed"}
+            showPlan={false}
+            onRetry={onRiskRetry}
+          />
+          {centreNote ? <p className="text-lg">{centreNote}</p> : null}
+        </div>
+      ) : null}
+      <div id="lista-municipios" className="flex flex-col gap-3">
+        <p className="text-lg font-semibold">O elija su municipio</p>
         <label className="text-lg font-semibold" htmlFor="departamento">
           Departamento
         </label>
@@ -448,19 +578,46 @@ function FotoStep({
             </option>
           ))}
         </select>
-        {placeById(placeId)?.coordType === "slope_point" ? null : (
-          <p className="text-lg">
-            El pronóstico es para el centro del municipio, no para su finca.
-          </p>
-        )}
+        {centreNote && !risk && riskState === "idle" ? (
+          <p className="text-lg">{centreNote}</p>
+        ) : null}
         {department !== "" && municipalityQuery.trim() !== "" && matches.length === 0 ? (
           <p role="status">Ningún municipio con ese nombre.</p>
         ) : null}
       </div>
-      <button type="button" className={secondary} onClick={onLocate}>
-        Usar mi ubicación
+      <h1 className="text-2xl font-semibold tracking-tight">
+        Tome una foto de una hoja de café.
+      </h1>
+      <p>Una sola hoja, de cerca, con buena luz.</p>
+      {preview ? (
+        <div
+          role="img"
+          aria-label="Foto de la hoja"
+          className="h-56 w-full rounded-2xl bg-cover bg-center"
+          style={{ backgroundImage: `url("${preview}")` }}
+        />
+      ) : null}
+      <input
+        ref={cameraRef}
+        className="sr-only"
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={(event) => onFile(event.target.files?.[0])}
+      />
+      <input
+        ref={uploadRef}
+        className="sr-only"
+        type="file"
+        accept="image/*"
+        onChange={(event) => onFile(event.target.files?.[0])}
+      />
+      <button type="button" className={primary} onClick={() => cameraRef.current?.click()}>
+        Tomar foto de la hoja
       </button>
-      {geoNote ? <p>{geoNote}</p> : null}
+      <button type="button" className={secondary} onClick={() => uploadRef.current?.click()}>
+        Subir foto
+      </button>
       {diagnosing ? (
         <p role="status">
           {slow

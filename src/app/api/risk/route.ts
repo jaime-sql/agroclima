@@ -1,11 +1,9 @@
-import { loadPlaceRisk } from "@/lib/risk/load";
+import { handleRiskQuery } from "@/lib/risk/load";
 
 export async function GET(request: Request) {
-  const place = new URL(request.url).searchParams.get("place") ?? "";
-  const result = await loadPlaceRisk(place);
-  const status = result.ok ? 200 : result.error === "unknown_place" ? 400 : 502;
-  return Response.json(result, {
-    status,
+  const result = await handleRiskQuery(new URL(request.url));
+  return Response.json(result.body, {
+    status: result.status,
     headers: { "Cache-Control": "no-store" },
   });
 }
