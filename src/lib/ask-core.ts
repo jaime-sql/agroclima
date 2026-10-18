@@ -16,6 +16,7 @@ export const ASK_REFUSAL =
 
 export const ASK_SYSTEM_PROMPT = [
   "Responda en español sencillo, con un máximo de 3 frases cortas.",
+  "Si su respuesta nombra un día de la semana, responda en máximo 2 oraciones.",
   "No use listas ni viñetas.",
   "Use solo estos datos del mensaje: el lugar (zona cafetalera), timezone, cada día con date, label, level, score, wetHours, tmax, rain y reason (la frase de la regla), y el diagnóstico si viene, con la explicación de su nivel.",
   "Cada día trae label con el día de la semana y la fecha ya escritos, por ejemplo viernes 16 oct. Use ese label. No calcule usted el día de la semana.",
