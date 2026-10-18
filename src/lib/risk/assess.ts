@@ -276,13 +276,12 @@ export function assessForecast(forecast: OpenMeteoForecast): WeekAssessment {
     let wetHours = 0;
     let warmWetHours = 0;
     let optWetHours = 0;
-    // Figures use this same local-day hour list. Do not read them from the daily aggregates.
-    let tmax = Number.NEGATIVE_INFINITY;
+    // Rain and wet hours stay on this local-day hour list.
+    // tmax is the daily max R5 scores, not the peak of these hours.
     let rain = 0;
     for (const hour of dayHours) {
       const temperature = hour.temperature_2m;
       const precipitation = hour.precipitation;
-      if (temperature !== null && temperature > tmax) tmax = temperature;
       if (precipitation !== null) rain += precipitation;
       if (!isWetHour(hour)) continue;
       wetHours += 1;
@@ -290,9 +289,6 @@ export function assessForecast(forecast: OpenMeteoForecast): WeekAssessment {
       if (temperature < 15 || temperature > 30) continue;
       warmWetHours += 1;
       if (temperature >= 21 && temperature <= 25) optWetHours += 1;
-    }
-    if (!Number.isFinite(tmax)) {
-      return { date: entry.date, incomplete: true as const, warmWetHours: null };
     }
 
     const rainDay =
@@ -307,7 +303,7 @@ export function assessForecast(forecast: OpenMeteoForecast): WeekAssessment {
       optWetHours,
       rainDay,
       precipitationSum,
-      tmax,
+      tmax: tempMax,
       rain,
       latencyBand,
     };

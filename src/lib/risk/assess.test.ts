@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, it } from "node:test";
+import { askUserContent, sanitizeAskBody } from "../ask.ts";
 import { dayCardReason } from "../format.ts";
 import { fetchDepartmentForecast, forecastUrl } from "../weather/openmeteo.ts";
 import {
@@ -555,13 +556,18 @@ function expectScoredDay(
   reason: string,
   score?: number,
 ) {
-  const week = assessForecast(readFixture(file) as OpenMeteoForecast);
+  const fixture = readFixture(file) as OpenMeteoForecast;
+  const week = assessForecast(fixture);
   assert.equal(week.available, true, file);
   const day = week.days[index];
   assert.ok(day, file);
   assert.equal(day.level, level, `${file} level`);
   assert.equal(day.reason, reason, `${file} reason`);
   if (score !== undefined) assert.equal(day.score, score, `${file} score`);
+  if (day.level === null) return;
+  const dailyIndex = fixture.daily?.time.indexOf(day.date) ?? -1;
+  assert.ok(dailyIndex >= 0, `${file} daily date`);
+  assert.equal(day.tmax, fixture.daily?.temperature_2m_max[dailyIndex], `${file} tmax`);
 }
 
 describe("DR-01 to DR-71 fixtures", () => {
@@ -695,7 +701,7 @@ describe("DR-01 to DR-71 fixtures", () => {
     assert.equal(kept.timezone, "America/El_Salvador");
   });
 
-  it("DR-70 same-window numbers come from the scored El Salvador hours", () => {
+  it("DR-70 tmax is now the scored daily max; wet hours and rain stay on the local hours", () => {
     const hours = [
       ...Array.from({ length: 10 }, (_, index) => ({
         time: `2026-10-11T${String(index).padStart(2, "0")}:00`,
@@ -722,15 +728,42 @@ describe("DR-01 to DR-71 fixtures", () => {
       ]),
     ).days[0];
     assert.equal(day.wetHours, 11);
-    assert.equal(day.tmax, 24);
+    assert.equal(day.tmax, 31);
     assert.equal(day.rain, 6);
     assert.equal(day.rainDay, false);
     assert.equal(day.latencyBand, false);
     assert.equal(day.level, "medio");
     assert.equal(
       dayCardReason(day),
-      "11 h húmedas · máx. 24 °C · lluvia 6 mm. «Humedad o lluvia algunas horas: riesgo moderado.»",
+      "11 h húmedas · máx. 31 °C · lluvia 6 mm. «Humedad o lluvia algunas horas: riesgo moderado.»",
     );
+  });
+
+  it("tmax equals the daily max R5 scores for a real fixture", () => {
+    const fixture = readFixture("r5_tmax_22_at.json") as OpenMeteoForecast;
+    const day = assessForecast(fixture).days[0];
+    const scoredMax = fixture.daily?.temperature_2m_max[0];
+    assert.equal(scoredMax, 22);
+    assert.equal(day.tmax, scoredMax);
+    assert.equal(
+      day.latencyBand,
+      scoredMax !== undefined && scoredMax !== null && scoredMax >= 22 && scoredMax <= 28,
+    );
+    assert.equal(day.level, "medio");
+    assert.equal(
+      dayCardReason(day),
+      "3 h húmedas · máx. 22 °C · lluvia 0 mm. «Humedad o lluvia algunas horas: riesgo moderado.»",
+    );
+    const grounded = sanitizeAskBody({
+      question: "¿Por qué este día es medio?",
+      place: "Zona cafetalera de Santa Ana",
+      timezone: "America/El_Salvador",
+      days: [day],
+    });
+    assert.equal(grounded.ok, true);
+    if (!grounded.ok) return;
+    assert.equal(grounded.grounding.days[0]?.tmax, scoredMax);
+    assert.equal(askUserContent(grounded.question, grounded.grounding).includes('"tmax":22'), true);
   });
 
   it("DR-71 sin dato never uses 0, and a day with no hours stays sin datos", () => {
