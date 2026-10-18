@@ -1,18 +1,16 @@
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { expect, test } from "@playwright/test";
-import { formatWeekday } from "../src/lib/format.ts";
-import { pinCardLine, worstDay } from "../src/lib/risk/pin-card.ts";
+import { mkdirSync, readdirSync, readFileSync, statSync } from "node:fs";
+import path from "node:path";
+import { expect, test, type Locator, type Page } from "@playwright/test";
+import { project } from "../src/lib/map/cluster.ts";
+import { MIXED_LEVELS, type FixtureLevel } from "./mixed-levels.ts";
+import { PLACES } from "../src/lib/places.ts";
 
-type Place = { id: string; name: string };
-type Level = "alto" | "medio" | "bajo";
-
-const places = JSON.parse(readFileSync("src/data/locations.json", "utf8")) as Place[];
-const colors: Record<Level, string> = {
+const colors: Record<FixtureLevel, string> = {
   alto: "rgb(138, 28, 20)",
   medio: "rgb(138, 106, 0)",
   bajo: "rgb(30, 91, 42)",
 };
-const letter: Record<Level, string> = { alto: "A", medio: "M", bajo: "B" };
+const letters: Record<FixtureLevel, string> = { alto: "A", medio: "M", bajo: "B" };
 const dates = [
   "2026-10-18",
   "2026-10-19",
@@ -23,29 +21,8 @@ const dates = [
   "2026-10-24",
 ];
 
-function levelsFor(index: number): Level[] {
-  const kind = index % 3;
-  if (kind === 0) return dates.map(() => "bajo");
-  if (kind === 1) return dates.map((_, day) => (day === 0 || day === 3 ? "alto" : "medio"));
-  return dates.map((_, day) => (day >= 5 ? "medio" : "bajo"));
-}
-
-const weeks = places.map((place, index) => {
-  const levels = levelsFor(index);
-  const scored = dates.map((date, day) => ({ date, level: levels[day] }));
-  const worst = worstDay(scored);
-  return {
-    ...place,
-    levels,
-    level: worst?.level ?? null,
-    day: worst ? formatWeekday(worst.date) : "",
-    line: pinCardLine(scored, dates[0]),
-  };
-});
-
-const pins = weeks.map((place) => ({ id: place.id, level: place.level, day: place.day }));
-
-function week(place: (typeof weeks)[number]) {
+function week(place: (typeof PLACES)[number]) {
+  const level = MIXED_LEVELS[place.id];
   return {
     ok: true,
     place: { id: place.id, name: place.name },
@@ -57,9 +34,9 @@ function week(place: (typeof weeks)[number]) {
       doseNote: "dosis según etiqueta / su agrónomo",
       nextDryWindow: null,
     },
-    days: dates.map((date, index) => ({
+    days: dates.map((date) => ({
       date,
-      level: place.levels[index],
+      level,
       reason: "Humedad o lluvia algunas horas.",
       score: 2,
       wetHours: 4,
@@ -74,55 +51,12 @@ function week(place: (typeof weeks)[number]) {
   };
 }
 
-async function pinSpread(map: import("@playwright/test").Locator) {
-  return map.evaluate((element) => {
-    const mapRect = element.getBoundingClientRect();
-    const pins = [...element.querySelectorAll(".agroclima-pin")].map((marker) => {
-      const pill = marker.querySelector("span");
-      const rect = marker.getBoundingClientRect();
-      return {
-        id: marker.getAttribute("data-place-id"),
-        label: marker.getAttribute("aria-label"),
-        text: (marker.textContent ?? "").trim(),
-        background: pill ? getComputedStyle(pill).backgroundColor : "",
-        width: rect.width,
-        height: rect.height,
-        z: Number((marker as HTMLElement).style.zIndex || 0),
-        cx: rect.left + rect.width / 2,
-        cy: rect.top + rect.height / 2,
-        left: rect.left - mapRect.left,
-        top: rect.top - mapRect.top,
-        right: mapRect.right - rect.right,
-        bottom: mapRect.bottom - rect.bottom,
-      };
-    });
-    let min = Number.POSITIVE_INFINITY;
-    let pair: [string, string] = ["", ""];
-    for (let i = 0; i < pins.length; i += 1) {
-      for (let j = i + 1; j < pins.length; j += 1) {
-        const distance = Math.hypot(pins[i].cx - pins[j].cx, pins[i].cy - pins[j].cy);
-        if (distance < min) {
-          min = distance;
-          pair = [pins[i].id ?? "", pins[j].id ?? ""];
-        }
-      }
-    }
-    const xs = pins.map((pin) => pin.cx);
-    const ys = pins.map((pin) => pin.cy);
-    return {
-      mapWidth: mapRect.width,
-      mapHeight: mapRect.height,
-      spanX: Math.max(...xs) - Math.min(...xs),
-      spanY: Math.max(...ys) - Math.min(...ys),
-      minDistance: min,
-      closest: pair,
-      pins,
-    };
-  });
-}
-
-test("map is at least 300px tall at 390px and a pin opens its week", async ({ page }) => {
-  mkdirSync("e2e/output", { recursive: true });
+async function installRisk(page: Page) {
+  const pins = PLACES.map((place) => ({
+    id: place.id,
+    level: MIXED_LEVELS[place.id],
+    day: "Domingo",
+  }));
   await page.route("**://*.openstreetmap.org/**", (route) => route.abort());
   await page.route("**/api/risk**", async (route) => {
     const url = new URL(route.request().url());
@@ -131,130 +65,299 @@ test("map is at least 300px tall at 390px and a pin opens its week", async ({ pa
       return;
     }
     const id = url.searchParams.get("place") ?? "";
-    const place = weeks.find((item) => item.id === id);
-    if (!place) {
+    const place = PLACES.find((item) => item.id === id);
+    if (!place || !MIXED_LEVELS[place.id]) {
       await route.fulfill({ status: 400, json: { ok: false, error: "unknown_place" } });
       return;
     }
     await route.fulfill({ json: week(place) });
   });
+}
 
+async function waitForLevels(map: Locator) {
+  await expect
+    .poll(async () =>
+      map.evaluate((element) =>
+        [...element.querySelectorAll(".agroclima-pin, .agroclima-cluster")].some((node) =>
+          /[AMB]/.test(node.textContent ?? ""),
+        ),
+      ),
+    )
+    .toBe(true);
+}
+
+async function tapPlace(page: Page, id: string): Promise<number> {
+  const map = page.locator("#mapa");
+  let taps = 0;
+  for (; taps < 3; taps += 1) {
+    const pin = map.locator(`.agroclima-pin[data-place-id="${id}"]`);
+    if ((await pin.count()) === 1) {
+      const point = await pin.evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        const x = rect.left + rect.width / 2;
+        const y = rect.top + rect.height / 2;
+        const hit = document.elementFromPoint(x, y);
+        return { x, y, owns: !!hit && (hit === element || element.contains(hit)) };
+      });
+      if (point.owns) {
+        await page.mouse.click(point.x, point.y);
+        return taps + 1;
+      }
+    }
+    const zoom = await map.getAttribute("data-zoom");
+    const cluster = await map.locator(".agroclima-cluster").evaluateAll((nodes, placeId) => {
+      const node = nodes.find((item) =>
+        (item.getAttribute("data-place-ids") ?? "").split(",").includes(placeId),
+      );
+      if (!node) return null;
+      const rect = node.getBoundingClientRect();
+      const x = rect.left + rect.width / 2;
+      const y = rect.top + rect.height / 2;
+      const hit = document.elementFromPoint(x, y);
+      return {
+        x,
+        y,
+        owns: !!hit && (hit === node || node.contains(hit)),
+        count: node.getAttribute("data-count"),
+      };
+    }, id);
+    expect(cluster, `${id} has a pin or a cluster`).not.toBeNull();
+    expect(cluster!.owns, `${id} cluster receives the tap`).toBe(true);
+    await page.mouse.click(cluster!.x, cluster!.y);
+    await expect.poll(async () => map.getAttribute("data-zoom")).not.toBe(zoom);
+  }
+  return taps;
+}
+
+test("every place opens from the 390px map in at most 3 taps", async ({ page }) => {
+  test.setTimeout(180_000);
+  mkdirSync("e2e/output", { recursive: true });
+  await installRisk(page);
+  await page.setViewportSize({ width: 390, height: 800 });
+  const tapsByPlace: Record<string, number> = {};
+
+  for (const [index, place] of PLACES.entries()) {
+    await page.goto("/");
+    const map = page.locator("#mapa");
+    await map.scrollIntoViewIfNeeded();
+    const box = await map.boundingBox();
+    expect(box!.height).toBeGreaterThanOrEqual(300);
+    await waitForLevels(map);
+    if (index === 0) {
+      const link = page.getByRole("link", { name: "Ver lista" });
+      await expect(link).toHaveAttribute("href", "#lista-municipios");
+      expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      await expect(map.locator(".agroclima-cluster").first()).toBeVisible();
+      await map.screenshot({ path: "e2e/output/clusters-390.png" });
+    }
+    const taps = await tapPlace(page, place.id);
+    tapsByPlace[place.id] = taps;
+    expect(taps, place.id).toBeLessThanOrEqual(3);
+    const card = page.locator("div.flex.flex-col.gap-3").filter({
+      has: page.getByRole("heading", { name: "Riesgo de roya esta semana" }),
+    });
+    await expect(card.getByText(`Zona cafetalera de ${place.name}`)).toBeVisible();
+    await expect(card.getByText(`Toda la semana: ${MIXED_LEVELS[place.id]}`)).toBeVisible();
+    await expect(card.getByRole("button", { name: /riesgo/i })).toHaveCount(7);
+    if (place.id === "santa-ana") {
+      await card.screenshot({ path: "e2e/output/pin-card-390.png" });
+    }
+    if (place.id === "comasagua-la-libertad") {
+      await map.screenshot({ path: "e2e/output/pins-390.png" });
+    }
+  }
+
+  const worst = Math.max(...Object.values(tapsByPlace));
+  console.log(`MAX_TAPS ${worst}`);
+  console.log(JSON.stringify(tapsByPlace));
+  expect(worst).toBeLessThanOrEqual(3);
+});
+
+test("mixed fixture shows A, M and B pins and a mixed cluster", async ({ page }) => {
+  mkdirSync("e2e/output", { recursive: true });
+  await installRisk(page);
   await page.setViewportSize({ width: 390, height: 800 });
   await page.goto("/");
   const map = page.locator("#mapa");
   await map.scrollIntoViewIfNeeded();
-  const box = await map.boundingBox();
-  expect(box, "#mapa has no box").not.toBeNull();
-  expect(box!.height, "#mapa height").toBeGreaterThanOrEqual(300);
+  await waitForLevels(map);
 
-  const link = page.getByRole("link", { name: "Ver lista" });
-  await expect(link).toHaveAttribute("href", "#lista-municipios");
-  const linkBox = await link.boundingBox();
-  expect(linkBox!.height).toBeGreaterThanOrEqual(44);
-
-  const markers = page.locator("#mapa .agroclima-pin");
-  await expect(markers).toHaveCount(20);
-  await expect
-    .poll(async () =>
-      markers.evaluateAll((nodes) =>
-        nodes.every((node) => /^[AMB]$/.test((node.textContent ?? "").trim())),
-      ),
-    )
-    .toBe(true);
-  await expect.poll(async () => (await pinSpread(map)).spanX).toBeGreaterThan((box!.width ?? 0) * 0.7);
-
-  const painted = await pinSpread(map);
-  expect(painted.pins).toHaveLength(20);
-  expect(painted.mapHeight).toBeGreaterThanOrEqual(300);
-  expect(painted.spanX).toBeGreaterThan(painted.mapWidth * 0.7);
-  for (const place of weeks) {
-    const paint = painted.pins.find((item) => item.id === place.id);
-    expect(paint, place.id).toBeTruthy();
-    if (!paint || !place.level) continue;
-    expect(paint.text, place.name).toBe(letter[place.level]);
-    expect(paint.label, place.name).toBe(
-      `${place.name}: ${place.level}, ${place.day.toLocaleLowerCase("es-SV")}`,
-    );
-    expect(paint.background, place.name).toBe(colors[place.level]);
-    expect(paint.width, place.name).toBeGreaterThanOrEqual(40);
-    expect(paint.height, place.name).toBeGreaterThanOrEqual(40);
-    expect(paint.left, place.name).toBeGreaterThanOrEqual(-1);
-    expect(paint.top, place.name).toBeGreaterThanOrEqual(-1);
-    expect(paint.right, place.name).toBeGreaterThanOrEqual(-1);
-    expect(paint.bottom, place.name).toBeGreaterThanOrEqual(-1);
-  }
-  await expect(page.locator(".leaflet-control-zoom-out")).toHaveClass(/leaflet-disabled/);
-
-  await map.screenshot({ path: "e2e/output/mapa-390.png" });
-
-  const targetId = "san-fernando-chalatenango";
-  const target = weeks.find((place) => place.id === targetId);
-  expect(target?.name).toBe("San Fernando");
-  expect(target?.line).toBe("Peor día: Viernes");
-  const point = await page.locator(`[data-place-id="${targetId}"]`).evaluate((element) => {
-    const rect = element.getBoundingClientRect();
-    const samples = [
-      [rect.left + rect.width / 2, rect.top + rect.height / 2],
-      [rect.left + 8, rect.top + rect.height / 2],
-      [rect.right - 8, rect.top + rect.height / 2],
-      [rect.left + rect.width / 2, rect.top + 8],
-      [rect.left + rect.width / 2, rect.bottom - 8],
-    ];
-    for (const [x, y] of samples) {
-      const hit = document.elementFromPoint(x, y);
-      if (hit && (hit === element || element.contains(hit))) return { x, y, owns: true };
-    }
-    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2, owns: false };
-  });
-  expect(point.owns, "San Fernando is the marker under the tap").toBe(true);
-  await page.touchscreen.tap(point.x, point.y);
-
-  const raised = await page.locator("#mapa .agroclima-pin").evaluateAll((nodes, id) => {
-    const zOf = (node: Element) => Number((node as HTMLElement).style.zIndex || 0);
-    const selected = nodes.find((node) => node.getAttribute("data-place-id") === id);
-    const others = nodes.filter((node) => node.getAttribute("data-place-id") !== id).map(zOf);
-    return { selected: selected ? zOf(selected) : 0, maxOther: Math.max(...others) };
-  }, targetId);
-  expect(raised.selected).toBeGreaterThan(raised.maxOther);
-
-  const card = page
-    .locator("div.flex.flex-col.gap-3")
-    .filter({ has: page.getByRole("heading", { name: "Riesgo de roya esta semana" }) })
-    .filter({ hasText: target!.line! });
-  await expect(card.getByText(target!.line!)).toBeVisible();
-  await expect(card.getByText(`Zona cafetalera de ${target!.name}`)).toBeVisible();
-  await expect(card.getByRole("button", { name: /riesgo/i })).toHaveCount(7);
-  await card.screenshot({ path: "e2e/output/pin-card-390.png" });
-
-  await page.locator(".leaflet-control-zoom-in").click();
-  let previous = 0;
-  const zoomedMin = await expect
-    .poll(async () => {
-      const spread = await pinSpread(map);
-      const settled =
-        previous > 0 &&
-        Math.abs(spread.minDistance - previous) < 0.5 &&
-        spread.minDistance > painted.minDistance * 1.7;
-      previous = spread.minDistance;
-      return settled ? spread.minDistance : 0;
-    })
-    .toBeGreaterThan(painted.minDistance * 1.7)
-    .then(() => pinSpread(map));
-
-  const report = {
-    mapWidth: painted.mapWidth,
-    mapHeight: painted.mapHeight,
-    spanX: painted.spanX,
-    spanY: painted.spanY,
-    minDistancePx: painted.minDistance,
-    closest: painted.closest,
-    minDistanceAfterOneZoomPx: zoomedMin.minDistance,
-    closestAfterOneZoom: zoomedMin.closest,
-  };
-  writeFileSync("e2e/output/pin-distance.json", JSON.stringify(report, null, 2));
-  console.log(`MIN_PIN_DISTANCE_PX ${report.minDistancePx.toFixed(1)} ${report.closest.join(" ")}`);
-  console.log(
-    `MIN_PIN_DISTANCE_AFTER_ONE_ZOOM_PX ${report.minDistanceAfterOneZoomPx.toFixed(1)} ${report.closestAfterOneZoom.join(" ")}`,
+  const initial = await map.evaluate((element) =>
+    [...element.querySelectorAll(".agroclima-cluster")].map((node) => ({
+      ids: (node.getAttribute("data-place-ids") ?? "").split(","),
+      letter: node.getAttribute("data-letter"),
+      level: node.getAttribute("data-level"),
+      background: getComputedStyle(node.querySelector("span") as HTMLElement).backgroundColor,
+      width: node.getBoundingClientRect().width,
+      text: (node.textContent ?? "").replace(/\s+/g, " ").trim(),
+    })),
   );
-  expect(report.minDistanceAfterOneZoomPx).toBeGreaterThan(report.minDistancePx * 1.7);
+  const west = initial.find((cluster) => cluster.ids.includes("ahuachapan") && cluster.ids.includes("tepecoyo-la-libertad"));
+  expect(west, "west cluster mixes levels").toBeTruthy();
+  expect(west!.letter).toBe("A");
+  expect(west!.level).toBe("alto");
+  expect(west!.background).toBe(colors.alto);
+  expect(west!.width).toBeGreaterThanOrEqual(44);
+  expect(west!.text).toContain("A");
+  expect(initial.some((cluster) => cluster.letter === "M")).toBe(true);
+  expect(initial.some((cluster) => cluster.letter === "B")).toBe(true);
+  await map.screenshot({ path: "e2e/output/mixed-clusters-390.png" });
+
+  const viewZoom = 10.8;
+  const pair = ["jayaque-la-libertad", "talnique-la-libertad"].map(
+    (id) => PLACES.find((place) => place.id === id)!,
+  );
+  const individuals = ["comasagua-la-libertad", "santa-tecla-la-libertad", "tepecoyo-la-libertad"].map(
+    (id) => PLACES.find((place) => place.id === id)!,
+  );
+  const clusterPoint = project(
+    pair.reduce((sum, place) => sum + place.latitude, 0) / pair.length,
+    pair.reduce((sum, place) => sum + place.longitude, 0) / pair.length,
+    viewZoom,
+  );
+  const framed = [
+    clusterPoint,
+    ...individuals.map((place) => project(place.latitude, place.longitude, viewZoom)),
+  ];
+  const centerX = (Math.min(...framed.map((point) => point.x)) + Math.max(...framed.map((point) => point.x))) / 2;
+  const centerY = (Math.min(...framed.map((point) => point.y)) + Math.max(...framed.map((point) => point.y))) / 2;
+  const scale = 256 * 2 ** viewZoom;
+  const longitude = (centerX / scale) * 360 - 180;
+  const mercator = Math.PI - (2 * Math.PI * centerY) / scale;
+  const latitude = (180 / Math.PI) * Math.atan(Math.sinh(mercator));
+  await map.evaluate(
+    (element, view) => {
+      const leafletMap = (
+        element as HTMLElement & {
+          mapView?: {
+            options: { zoomSnap: number };
+            setView: (center: [number, number], nextZoom: number, options: { animate: boolean }) => void;
+          };
+        }
+      ).mapView;
+      if (!leafletMap) throw new Error("map instance missing");
+      const snap = leafletMap.options.zoomSnap;
+      leafletMap.options.zoomSnap = 0;
+      leafletMap.setView([view.latitude, view.longitude], view.zoom, { animate: false });
+      leafletMap.options.zoomSnap = snap;
+    },
+    { latitude, longitude, zoom: viewZoom },
+  );
+  await expect
+    .poll(async () => {
+      const zoom = Number(await map.getAttribute("data-zoom"));
+      return Math.abs(zoom - viewZoom) < 0.01;
+    })
+    .toBe(true);
+  const frame = await map.evaluate((element) => {
+    const mapRect = element.getBoundingClientRect();
+    const inside = (rect: DOMRect) =>
+      rect.left >= mapRect.left - 1 &&
+      rect.right <= mapRect.right + 1 &&
+      rect.top >= mapRect.top - 1 &&
+      rect.bottom <= mapRect.bottom + 1;
+    return {
+      pins: [...element.querySelectorAll(".agroclima-pin")]
+        .filter((node) => inside(node.getBoundingClientRect()))
+        .map((node) => {
+          const disc = node.querySelectorAll("span")[1] as HTMLElement;
+          return {
+            id: node.getAttribute("data-place-id"),
+            text: (node.textContent ?? "").trim(),
+            background: getComputedStyle(disc).backgroundColor,
+            color: getComputedStyle(disc).color,
+          };
+        }),
+      clusters: [...element.querySelectorAll(".agroclima-cluster")]
+        .filter((node) => inside(node.getBoundingClientRect()))
+        .map((node) => {
+          const bubble = node.querySelector("span") as HTMLElement;
+          return {
+            ids: (node.getAttribute("data-place-ids") ?? "").split(","),
+            text: (node.textContent ?? "").replace(/\s+/g, " ").trim(),
+            letter: node.getAttribute("data-letter"),
+            level: node.getAttribute("data-level"),
+            background: getComputedStyle(bubble).backgroundColor,
+            color: getComputedStyle(bubble).color,
+          };
+        }),
+    };
+  });
+  expect(frame.pins.map((pin) => pin.id).sort()).toEqual(individuals.map((place) => place.id).sort());
+  for (const pin of frame.pins) {
+    const level = MIXED_LEVELS[pin.id ?? ""];
+    expect(pin.text, pin.id ?? "").toBe(letters[level]);
+    expect(pin.background, pin.id ?? "").toBe(colors[level]);
+    expect(pin.color, pin.id ?? "").toBe("rgb(255, 255, 255)");
+  }
+  expect(new Set(frame.pins.map((pin) => pin.text))).toEqual(new Set(["A", "M", "B"]));
+  expect(frame.clusters).toHaveLength(1);
+  const mixed = frame.clusters[0];
+  expect(mixed.ids.sort()).toEqual(pair.map((place) => place.id).sort());
+  const rank: Record<FixtureLevel, number> = { bajo: 1, medio: 2, alto: 3 };
+  const memberLevels = mixed.ids.map((id) => MIXED_LEVELS[id]);
+  const worst = memberLevels.reduce((best, level) => (rank[level] > rank[best] ? level : best));
+  expect(new Set(memberLevels).size).toBeGreaterThan(1);
+  expect(mixed.level).toBe(worst);
+  expect(mixed.letter).toBe(letters[worst]);
+  expect(mixed.background).toBe(colors[worst]);
+  expect(mixed.color).toBe("rgb(255, 255, 255)");
+  expect(mixed.text).toContain(String(mixed.ids.length));
+  expect(mixed.text).toContain(letters[worst]);
+  await map.screenshot({ path: "e2e/output/mixed-open-390.png" });
+
+  await page.goto("/");
+  await map.scrollIntoViewIfNeeded();
+  await waitForLevels(map);
+  await tapPlace(page, "comasagua-la-libertad");
+  await expect(map.locator('.agroclima-pin[data-place-id="comasagua-la-libertad"]')).toBeVisible();
+  await expect(map.locator('.agroclima-pin[data-place-id="jayaque-la-libertad"]')).toBeVisible();
+  await expect(map.locator('.agroclima-pin[data-place-id="santa-tecla-la-libertad"]')).toBeVisible();
+  const pins = await map.evaluate((element) =>
+    [...element.querySelectorAll(".agroclima-pin")].map((node) => {
+      const disc = node.querySelectorAll("span")[1] as HTMLElement | undefined;
+      const box = node.getBoundingClientRect();
+      const discBox = disc?.getBoundingClientRect();
+      return {
+        id: node.getAttribute("data-place-id"),
+        label: node.getAttribute("aria-label"),
+        text: (node.textContent ?? "").trim(),
+        background: disc ? getComputedStyle(disc).backgroundColor : "",
+        width: box.width,
+        height: box.height,
+        disc: discBox?.width ?? 0,
+      };
+    }),
+  );
+  for (const id of ["comasagua-la-libertad", "jayaque-la-libertad", "santa-tecla-la-libertad"] as const) {
+    const level = MIXED_LEVELS[id];
+    const pin = pins.find((item) => item.id === id);
+    expect(pin?.text, id).toBe(letters[level]);
+    expect(pin?.background, id).toBe(colors[level]);
+    expect(pin?.width, id).toBeGreaterThanOrEqual(44);
+    expect(pin?.height, id).toBeGreaterThanOrEqual(44);
+    expect(pin?.disc, id).toBeGreaterThanOrEqual(30);
+    expect(pin?.disc, id).toBeLessThanOrEqual(34);
+    expect(pin?.label, id).toContain(level);
+  }
+  await map.screenshot({ path: "e2e/output/mixed-pins-390.png" });
+});
+
+test("the production build cannot load the level fixture", () => {
+  const sentinel = "AGROCLIMA_MAP_LEVEL_FIXTURE";
+  const roots = [".next/server", ".next/static"].filter((dir) => statSync(dir, { throwIfNoEntry: false })?.isDirectory());
+  expect(roots.length).toBe(2);
+  const files: string[] = [];
+  const walk = (dir: string) => {
+    for (const entry of readdirSync(dir)) {
+      const full = path.join(dir, entry);
+      if (statSync(full).isDirectory()) walk(full);
+      else if (/\.(js|json|html|rsc|txt)$/.test(entry)) files.push(full);
+    }
+  };
+  for (const root of roots) walk(root);
+  expect(files.length).toBeGreaterThan(0);
+  for (const file of files) {
+    expect(readFileSync(file, "utf8").includes(sentinel), file).toBe(false);
+  }
 });
