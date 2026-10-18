@@ -41,7 +41,7 @@ export function RiskPanel({
   showPlan: boolean;
   onRetry?: () => void;
   subtitle?: string;
-  /** Listed place only. GPS omits this and keeps the coffee-zone note plus its own line. */
+  /** Listed place only. GPS omits this so the card keeps its own single source line. */
   coordType?: CoordType | null;
 }) {
   const [selected, setSelected] = useState(0);
@@ -130,7 +130,7 @@ export function RiskPanel({
               );
             })}
           </div>
-          <p>{riskSourceNote(coordType)}</p>
+          {coordType ? <p>{riskSourceNote(coordType)}</p> : null}
           <article className="rounded-2xl bg-white p-4 shadow-sm">
             <h3 className="text-2xl font-semibold">
               {day.level === null

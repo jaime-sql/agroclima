@@ -33,11 +33,6 @@ export function coffeeZoneLabel(placeName: string): string {
   return `Zona cafetalera de ${placeName}`;
 }
 
-/** Name on the GPS card for the nearest listed place. Pending Designer confirmation. */
-export function gpsForecastLabel(placeName: string): string {
-  return `Pronóstico de ${placeName}`;
-}
-
 export type RiskCoordType = "town_centre" | "slope_point";
 
 /** Subtitle for the coordinate the forecast actually used. */
@@ -58,7 +53,7 @@ export function showsActionPlan(
 export const RISK_ZONE_NOTE =
   "Clima de una zona cafetalera cercana, no de su finca";
 
-/** The one source line on a place card. GPS keeps the zone note plus its own line. */
+/** The one source line on a listed-place card. GPS omits this and keeps its own grid or far note. */
 export function riskSourceNote(coordType?: RiskCoordType | null): string {
   return coordType === "town_centre" ? MUNICIPALITY_CENTRE_NOTE : RISK_ZONE_NOTE;
 }

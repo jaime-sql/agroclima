@@ -27,7 +27,6 @@ import {
   GEO_DENIED_COPY,
   RETRY_LABEL,
   coffeeZoneLabel,
-  gpsForecastLabel,
   riskSourceNote,
   riskStripSubtitle,
   showsActionPlan,
@@ -487,8 +486,6 @@ function FotoStep({
 
   const worstLine = pinCard && risk ? pinCardLine(risk.days) : null;
   const gpsLine = gpsRisk ? pinCardLine(gpsRisk.days) : null;
-  const nearestName =
-    gpsView?.kind === "near" ? (placeById(gpsView.highlightId)?.name ?? null) : null;
 
   return (
     <>
@@ -515,13 +512,7 @@ function FotoStep({
       {gpsView?.kind === "near" && gpsRisk ? (
         <div className="flex flex-col gap-3">
           {gpsLine ? <p className="text-lg font-semibold">{gpsLine}</p> : null}
-          <RiskPanel
-            risk={gpsRisk}
-            loading={false}
-            failed={false}
-            showPlan={false}
-            subtitle={nearestName ? gpsForecastLabel(nearestName) : "Toque un día"}
-          />
+          <RiskPanel risk={gpsRisk} loading={false} failed={false} showPlan={false} subtitle="Toque un día" />
           <p className="text-lg">{gpsView.gridNote}</p>
         </div>
       ) : null}

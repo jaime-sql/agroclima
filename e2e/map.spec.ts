@@ -3,8 +3,8 @@ import path from "node:path";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { project } from "../src/lib/map/cluster.ts";
 import { RISK_CUTOFF_FOOTER } from "../src/lib/risk/assess.ts";
-import { FAR_GPS_NOTE, MUNICIPALITY_CENTRE_NOTE, farGpsTitle } from "../src/lib/risk/gps.ts";
-import { gpsForecastLabel, RISK_ZONE_NOTE } from "../src/lib/vision/copy.ts";
+import { FAR_GPS_NOTE, GRID_POINT_NOTE, MUNICIPALITY_CENTRE_NOTE, farGpsTitle } from "../src/lib/risk/gps.ts";
+import { RISK_ZONE_NOTE } from "../src/lib/vision/copy.ts";
 import { MIXED_LEVELS, type FixtureLevel } from "./mixed-levels.ts";
 import { PLACES } from "../src/lib/places.ts";
 
@@ -408,7 +408,7 @@ async function installGps(page: Page, elevation: number) {
   });
 }
 
-test("gps near Santa Tecla names that place and the worst line", async ({ page, context }) => {
+test("gps near Santa Tecla shows the worst line and no place name", async ({ page, context }) => {
   mkdirSync("e2e/output", { recursive: true });
   await context.grantPermissions(["geolocation"]);
   await context.setGeolocation({ latitude: 13.674, longitude: -89.289 });
@@ -419,9 +419,15 @@ test("gps near Santa Tecla names that place and the worst line", async ({ page, 
   const card = page.locator("div.flex.flex-col.gap-3").filter({
     has: page.getByRole("heading", { name: "Riesgo de roya esta semana" }),
   });
-  await expect(card.getByText(gpsForecastLabel("Santa Tecla"))).toBeVisible();
+  await expect(card.getByText("Toque un día")).toBeVisible();
   await expect(card.getByText("Toda la semana: alto")).toBeVisible();
   await expect(card.getByText("Punto de la cuadrícula más cercano")).toHaveCount(0);
+  await expect(card.getByText(GRID_POINT_NOTE)).toHaveCount(1);
+  await expect(card.getByText(RISK_ZONE_NOTE)).toHaveCount(0);
+  await expect(card.getByText(MUNICIPALITY_CENTRE_NOTE)).toHaveCount(0);
+  await expect(card.getByText("Santa Tecla")).toHaveCount(0);
+  await expect(card.getByText(/Pronóstico de /)).toHaveCount(0);
+  await expect(page.locator("#departamento")).toHaveValue("");
   await card.screenshot({ path: "e2e/output/gps-card-390.png" });
 });
 
@@ -436,9 +442,14 @@ test("gps far from every pin keeps the location title and the worst line", async
     has: page.getByRole("heading", { name: "Riesgo de roya esta semana" }),
   });
   await expect(card.getByRole("heading", { name: farGpsTitle(812) })).toBeVisible();
-  await expect(card.getByText(FAR_GPS_NOTE)).toBeVisible();
+  await expect(card.getByText(FAR_GPS_NOTE)).toHaveCount(1);
   await expect(card.getByText("Toda la semana: alto")).toBeVisible();
+  await expect(card.getByText("Toque un día")).toBeVisible();
+  await expect(card.getByText(GRID_POINT_NOTE)).toHaveCount(0);
+  await expect(card.getByText(RISK_ZONE_NOTE)).toHaveCount(0);
+  await expect(card.getByText(MUNICIPALITY_CENTRE_NOTE)).toHaveCount(0);
   await expect(card.getByText(/Pronóstico de /)).toHaveCount(0);
+  await expect(page.locator("#departamento")).toHaveValue("");
 });
 
 test("the production build cannot load the level fixture", () => {
