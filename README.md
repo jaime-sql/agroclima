@@ -65,6 +65,10 @@ curl -sS -X POST "https://run.blaxel.ai/hackatonhf2025/agents/agroclima-ask" -H 
 
 `GET /health` on the agent returns 200.
 
+## Ask decisions
+
+A fixed check runs before any model call, on the Worker and on the Blaxel agent. It refuses doses, quantities, mixing, product or brand requests, treatment how-to, instruction overrides, prompt reveals, and other crops, and it returns the exact refusal sentence without calling OpenAI. The model still answers questions the check allows, including what Probable, Alto, Medio, and Bajo mean, and whether the weather is from the farm. That second step exists because the check only catches obvious requests. The model must not invent a dose or repeat its own prompt.
+
 ## Known limitations
 
 The place points are representative coffee zones (ISC origin zones Apaneca-Ilamatepec and Alotepec), not the user's farm. At 1,200-1,450 m, December, March, and April often score high under the Avelino 2015 temperature rule, not yet validated by an agronomist.

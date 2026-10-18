@@ -2,6 +2,7 @@ import { formatWeekday } from "./format.ts";
 import type { OpenAIEnv } from "./openai.ts";
 import {
   ASK_REFUSAL,
+  askRefusalResult,
   askValidationAnswer,
   completeAskQuestion,
   costHeaders,
@@ -9,6 +10,7 @@ import {
   limitSentences,
   readTokenCount,
   sanitizeAskBody,
+  shouldRefuseAsk,
   type AskGrounding,
   type AskResult,
 } from "./ask-core.ts";
@@ -24,6 +26,7 @@ export {
   ASK_SYSTEM_PROMPT,
   ASK_TOO_LONG,
   ASK_UNAVAILABLE,
+  askRefusalResult,
   askUserContent,
   askValidationAnswer,
   completeAskQuestion,
@@ -32,6 +35,7 @@ export {
   limitSentences,
   readTokenCount,
   sanitizeAskBody,
+  shouldRefuseAsk,
 } from "./ask-core.ts";
 
 export type { AskDay, AskGrounding, AskResult } from "./ask-core.ts";
@@ -127,6 +131,8 @@ export async function answerQuestion(options: {
   if (!allowAsk(options.ip, options.now ?? Date.now())) {
     return direct(quiet(429, ASK_RATE_LIMITED, "rate_limited"));
   }
+
+  if (shouldRefuseAsk(parsed.question)) return direct(askRefusalResult());
 
   const hosted = await askBlaxel(parsed.question, parsed.grounding, options.env, options.fetchImpl);
   if (hosted) return hosted;
