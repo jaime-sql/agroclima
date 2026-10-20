@@ -16,7 +16,7 @@ export const GRID_POINT_NOTE =
   "Pronóstico del punto más cercano de la cuadrícula del clima. Puede quedar a varios kilómetros.";
 
 export function farGpsTitle(elevationM: number): string {
-  return `Su ubicación (aproximada) · ${elevationM} m`;
+  return `Su ubicación (aproximada) · ${elevationM} m de altitud`;
 }
 
 export function roundCoordinate(value: number): number {

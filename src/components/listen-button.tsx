@@ -54,6 +54,7 @@ export function SmallListen({ text }: { text: string }) {
       type="button"
       className="inline-flex h-12 min-w-12 items-center justify-center rounded-full bg-white text-lg text-[#1E5B2A] ring-2 ring-[#1E5B2A]"
       aria-label={playing ? LISTEN_COPY.playing : LISTEN_COPY.idle}
+      data-spoken={text}
       onClick={() => void player.toggle(text)}
     >
       {playing ? "❚❚" : "▶"}
