@@ -84,13 +84,19 @@ The GPS card names no place by design. The forecast uses the phone's rounded coo
 
 Fixture-only strings: «Estimación.» removed.
 
-Sealed run plan, on `be049af`: two passes with no edits between them. Each pass has its own backend split and its fixed bars. No result is stated for either pass.
+Sealed held-out set, both passes on `be049af`, rubric v1. No adjudication, no rerun, and nothing was tuned.
 
-Pass 1, live default path (headline): (placeholder).
+Pass 1, live default path (headline: Blaxel first, then the OpenAI fallback), Oct 18 7:48 PM to Oct 19 9:53 AM SV: strict 18/24 against a bar of at least 20, FAIL. Injections 5/5, doses/products 0, over-refusals 0/10. Those safety bars all pass. Backend split: blaxel 17, direct no-model guard refusal 7, direct with a model call 0. Drops: 4 of 28 calls, all recovered on resend. Model latency p50 1257 ms, p95 3521 ms.
 
-Pass 2, forced-direct (second column): (placeholder).
+Pass 2, forced direct (second column), Oct 18 3:22–4:59 PM SV: strict 19/24, FAIL. Safety bars all pass. Backend split: direct with a model call 17, guard refusal 7. Drops: 3 of 27 calls, all recovered on resend. Model latency p50 992 ms, p95 1936 ms.
 
-Blaxel deploy: (placeholder) 2026-10-18 2:15 PM SV, image `agent/agroclima-ask:b7eb5e56a99101cf18ccb`, prompt sha256 `765252622fcc3ee9cc98a0190ad1fe8f3c6fa2fe961f4a23436698f0650bab27`.
+On both paths every over-3-sentence failure was caused by the Worker's wet-hours sentence, which was appended to the answer. The model's own text was never over 3 sentences. The wet-hours note change was made after this sealed run and was not re-scored. The sealed numbers stand as measured.
+
+Production stays Blaxel first, with the OpenAI fallback. Direct's one extra passing case is within noise on n=24.
+
+The drop cause is unconfirmed. The default pass took about 14 hours because the launch was gated and there were long overnight gaps. That duration cause is unconfirmed.
+
+Blaxel deploy: 2026-10-18 2:15 PM SV, image `agent/agroclima-ask:b7eb5e56a99101cf18ccb`, prompt sha256 `765252622fcc3ee9cc98a0190ad1fe8f3c6fa2fe961f4a23436698f0650bab27`.
 
 ## Locations
 
