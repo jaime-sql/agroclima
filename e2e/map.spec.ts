@@ -519,6 +519,35 @@ test("gps far from every pin names the first worst day of a mixed week", async (
   await expect(page.locator("#departamento")).toHaveValue("");
 });
 
+test("the picker shows the same worst-day line as the pin", async ({ page }) => {
+  const place = PLACES.find((item) => item.id === "santa-tecla-la-libertad");
+  const other = PLACES.find((item) => item.id === "comasagua-la-libertad");
+  expect(place && other).toBeTruthy();
+  const lineFor = (level: (typeof MIXED_LEVELS)[string]) =>
+    pinCardLine(dates.map((date) => ({ date, level })));
+  const pinLine = lineFor(MIXED_LEVELS[place!.id]);
+  const otherLine = lineFor(MIXED_LEVELS[other!.id]);
+  expect(pinLine).toBe(`Toda la semana: ${MIXED_LEVELS[place!.id]}`);
+  expect(otherLine).not.toBe(pinLine);
+
+  await installRisk(page);
+  await page.setViewportSize({ width: 390, height: 800 });
+  await page.goto("/");
+  const map = page.locator("#mapa");
+  await map.scrollIntoViewIfNeeded();
+  await waitForLevels(map);
+  await tapPlace(page, place!.id);
+  const card = page.locator("div.flex.flex-col.gap-3").filter({
+    has: page.getByRole("heading", { name: "Riesgo de roya esta semana" }),
+  });
+  await expect(card.locator("p.text-lg.font-semibold")).toHaveText(pinLine!);
+  await expect(page.locator("#departamento")).toHaveValue(place!.department);
+  await page.locator("#municipio").selectOption(other!.id);
+  await expect(card.locator("p.text-lg.font-semibold")).toHaveText(otherLine!);
+  await page.locator("#municipio").selectOption(place!.id);
+  await expect(card.locator("p.text-lg.font-semibold")).toHaveText(pinLine!);
+});
+
 test("the production build cannot load the level fixture", () => {
   const sentinel = "AGROCLIMA_MAP_LEVEL_FIXTURE";
   const roots = [".next/server", ".next/static"].filter((dir) => statSync(dir, { throwIfNoEntry: false })?.isDirectory());

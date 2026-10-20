@@ -20,7 +20,7 @@ export function worstDay(days: readonly ScoredDay[]): { level: RiskLevel; date: 
 }
 
 /**
- * Worst-day line on a pin card.
+ * Worst-day line for a listed place, on a pin tap and in the municipio picker.
  * All seven days one level: "Toda la semana: alto" (no day).
  * Today among the worst days: "Peor día: hoy".
  * Otherwise the earliest of those days: "Peor día: Martes".
