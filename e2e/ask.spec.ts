@@ -1,5 +1,6 @@
 import { mkdirSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
+import { sinDatosDepartments } from "./department-stub.ts";
 
 const QUESTION = "¿Lloverá mañana?";
 const ANSWER = "El lunes el riesgo es alto.";
@@ -52,6 +53,10 @@ async function installApp(page: Page) {
   await page.route("**://*.openstreetmap.org/**", (route) => route.abort());
   await page.route("**/api/risk**", async (route) => {
     const url = new URL(route.request().url());
+    if (url.pathname.endsWith("/departments")) {
+      await route.fulfill({ json: sinDatosDepartments() });
+      return;
+    }
     if (url.pathname.endsWith("/map")) {
       await route.fulfill({
         json: { ok: true, places: [{ id: "santa-ana", level: "alto", day: "Domingo" }] },

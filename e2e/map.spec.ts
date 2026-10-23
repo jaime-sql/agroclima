@@ -9,6 +9,7 @@ import { pinCardLine } from "../src/lib/risk/pin-card.ts";
 import type { RiskLevel } from "../src/lib/risk/types.ts";
 import { RISK_ZONE_NOTE } from "../src/lib/vision/copy.ts";
 import { MIXED_LEVELS, type FixtureLevel } from "./mixed-levels.ts";
+import { sinDatosDepartments } from "./department-stub.ts";
 import { PLACES } from "../src/lib/places.ts";
 
 const colors: Record<FixtureLevel, string> = {
@@ -66,6 +67,10 @@ async function installRisk(page: Page) {
   await page.route("**://*.openstreetmap.org/**", (route) => route.abort());
   await page.route("**/api/risk**", async (route) => {
     const url = new URL(route.request().url());
+    if (url.pathname.endsWith("/departments")) {
+      await route.fulfill({ json: sinDatosDepartments() });
+      return;
+    }
     if (url.pathname.endsWith("/map")) {
       await route.fulfill({ json: { ok: true, places: pins } });
       return;
@@ -404,6 +409,10 @@ async function installGps(page: Page, elevation: number, levels?: GpsLevel[]) {
   await page.route("**://*.openstreetmap.org/**", (route) => route.abort());
   await page.route("**/api/risk**", async (route) => {
     const url = new URL(route.request().url());
+    if (url.pathname.endsWith("/departments")) {
+      await route.fulfill({ json: sinDatosDepartments() });
+      return;
+    }
     if (url.pathname.endsWith("/map")) {
       await route.fulfill({ json: { ok: true, places: [] } });
       return;

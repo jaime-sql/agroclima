@@ -12,7 +12,9 @@ import {
   riskStripSubtitle,
 } from "@/lib/vision/copy";
 import { dayCardReason, formatChipDate, formatSprayWindow, formatWeekday, levelMark, levelWord } from "@/lib/format";
+import { actionPlanSpeech } from "@/lib/plan-speech";
 import type { WeekAssessment } from "@/lib/risk/types";
+import { ListenPlanButton } from "./listen-plan-button";
 
 export type RiskView = WeekAssessment & {
   place: { id: string; name: string };
@@ -149,7 +151,7 @@ export function RiskPanel({
           </a>
           <p>Pronóstico: Open-Meteo.</p>
           {showPlan ? (
-            <div className="flex flex-col gap-3">
+            <div id="plan-escrito" className="flex flex-col gap-3">
               <article className="rounded-2xl bg-white p-4">
                 <h3 className="text-2xl font-semibold">Qué</h3>
                 <p className="mt-1">
@@ -166,6 +168,7 @@ export function RiskPanel({
                 <p className="mt-1">☀ {formatSprayWindow(risk.plan.nextDryWindow)}</p>
               </article>
               <p>Use guantes y mascarilla. Lea la etiqueta.</p>
+              <ListenPlanButton text={actionPlanSpeech(risk.plan)} />
             </div>
           ) : null}
           <p>{risk.footer}</p>

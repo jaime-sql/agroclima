@@ -234,6 +234,9 @@ export function diagnosisMeaning(text: string): string | null {
   }
   if (/\bprobable\b/.test(folded)) return DIAGNOSIS_LEVEL_MEANINGS.probable;
   if (/\bseguro\b/.test(folded)) return DIAGNOSIS_LEVEL_MEANINGS.seguro;
+  if (/\balta\b/.test(folded)) return DIAGNOSIS_LEVEL_MEANINGS.seguro;
+  if (/\bmedia\b/.test(folded)) return DIAGNOSIS_LEVEL_MEANINGS.probable;
+  if (/\bbaja\b/.test(folded)) return DIAGNOSIS_LEVEL_MEANINGS.unsure;
   return null;
 }
 

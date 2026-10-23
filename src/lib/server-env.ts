@@ -1,4 +1,5 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
+import type { RiskKv } from "./risk/department-forecast.ts";
 import type { AudioBucket } from "./tts.ts";
 
 const NAMES = [
@@ -31,6 +32,17 @@ export function readServerEnv(): ServerEnv {
     out[name] = value;
   }
   return out;
+}
+
+/** Optional KV. Missing binding falls back to memory and the HTTP cache. */
+export function readRiskKv(): RiskKv | null {
+  try {
+    const kv = (getCloudflareContext().env as { RISK_CACHE?: RiskKv }).RISK_CACHE;
+    if (!kv || typeof kv.get !== "function" || typeof kv.put !== "function") return null;
+    return kv;
+  } catch {
+    return null;
+  }
 }
 
 export function readAudioBucket(): AudioBucket | null {

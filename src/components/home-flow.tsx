@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type RefObject } from "react";
-import { dayCardReason, formatPhotoDate, formatSprayWindow } from "@/lib/format";
+import { dayCardReason, formatPhotoDate } from "@/lib/format";
 import { downscalePhoto } from "@/lib/photo";
 import {
   departmentNames,
@@ -15,9 +15,13 @@ import {
   type GpsScreen,
 } from "@/lib/risk/gps";
 import { pinCardLine } from "@/lib/risk/pin-card";
+import { parseDepartmentMap, type DepartmentMapOk } from "@/lib/risk/department-catalog";
 import { PlaceMap, type MapPinSummary } from "./place-map";
 import { queHacerHoySpeech, todayRiskLevel } from "@/lib/que-hacer-hoy";
 import { listenScript } from "@/lib/speech";
+import { buildAgentSteps, planStepLine } from "@/lib/agent-steps";
+import { actionPlanSpeech } from "@/lib/plan-speech";
+import { buildWhyModel, worstDayDetail, type WhyModel } from "@/lib/result-why";
 import { agronomistSharePayload, canShareFiles, whatsAppLink } from "@/lib/share";
 import {
   CONTACTS_PENDING,
@@ -33,9 +37,12 @@ import {
 } from "@/lib/vision/copy";
 import type { Diagnosis } from "@/lib/vision/diagnose";
 import { AskBox } from "./ask-box";
+import { AgentStepper } from "./agent-stepper";
+import { DepartmentRiskMap } from "./department-map";
 import { ListenButton } from "./listen-button";
 import { QueHacerHoy } from "./que-hacer-hoy";
 import { RiskPanel, type RiskView } from "./risk-panel";
+import { OrientationTag, WhyPanel } from "./why-panel";
 
 type Step = "foto" | "resultado" | "riesgo" | "plan" | "compartir";
 type DiagnoseError = "unavailable" | "offline" | "failed";
@@ -51,10 +58,9 @@ function shareSummary(
   if (diagnoseError || !diagnosis || !diagnosis.ok) return "No pudimos revisar la hoja.";
   if (diagnosis.label === "retomar") return "Hay que repetir la foto.";
   if (diagnosis.band === "no_seguro") return "No estamos seguros.";
-  if (diagnosis.label === "sana") return "Parece sana (Seguro).";
+  if (diagnosis.label === "sana") return "Parece sana.";
   if (diagnosis.label === "otro") return "No parece roya.";
-  const band = diagnosis.band === "probable" ? "Probable" : "Seguro";
-  return `Parece roya (${band}).`;
+  return "Parece roya.";
 }
 
 export function HomeFlow() {
@@ -77,6 +83,10 @@ export function HomeFlow() {
   const [gpsView, setGpsView] = useState<GpsScreen | null>(null);
   const [gpsRisk, setGpsRisk] = useState<RiskView | null>(null);
   const [gpsState, setGpsState] = useState<"idle" | "loading" | "failed">("idle");
+  const [selectedDepartment, setSelectedDepartment] = useState<string | null>(null);
+  const [departmentMap, setDepartmentMap] = useState<DepartmentMapOk | null>(null);
+  const [departmentStatus, setDepartmentStatus] = useState<"loading" | "ready" | "failed">("loading");
+  const [departmentAttempt, setDepartmentAttempt] = useState(0);
 
   useEffect(() => {
     return () => {
@@ -84,13 +94,72 @@ export function HomeFlow() {
     };
   }, [preview]);
 
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await fetch("/api/risk/departments");
+        const payload = parseDepartmentMap(await response.json().catch(() => null));
+        if (cancelled) return;
+        if (!response.ok || !payload) {
+          setDepartmentStatus("failed");
+          return;
+        }
+        setDepartmentMap(payload);
+        setDepartmentStatus("ready");
+      } catch {
+        if (!cancelled) setDepartmentStatus("failed");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [departmentAttempt]);
+
+  function selectDepartment(value: string) {
+    setDepartment(value);
+    setSelectedDepartment(value);
+    setMunicipalityQuery("");
+    const current = placeById(placeId);
+    if (current && current.department !== value) {
+      setPlaceId("");
+      setRisk(null);
+    }
+  }
+
   const place = placeById(placeId);
+  const worstLine = risk ? pinCardLine(risk.days) : null;
   const planAllowed =
     diagnosis?.ok === true &&
     diagnosis.band !== "no_seguro" &&
     (diagnosis.label === "roya" || diagnosis.label === "sana") &&
     diagnoseError === null;
   const showRiskPlan = showsActionPlan(diagnoseError, planAllowed);
+  const selectedDept = departmentMap?.departments.find((item) => item.name === selectedDepartment) ?? null;
+  let climateLine: string | null = null;
+  if (place && worstLine) {
+    climateLine = `${place.name}: ${worstLine}`;
+  } else if (selectedDept) {
+    climateLine = selectedDept.level
+      ? `${selectedDept.name}: ${selectedDept.label}`
+      : `${selectedDept.name}: Sin datos`;
+  }
+  const diagnosisHeadline = diagnosis?.ok ? diagnosis.headline : null;
+  const steps = buildAgentSteps({
+    climateLine,
+    photo: photo !== null,
+    diagnosing,
+    diagnosisHeadline,
+    diagnoseErrorLine: diagnoseError ? diagnosisStatusCopy(diagnoseError) : null,
+    planAllowed,
+    planLine: planAllowed && risk ? planStepLine(risk.plan) : null,
+  });
+  const why = buildWhyModel({
+    label: diagnosis?.ok ? diagnosis.label : null,
+    leafDetail: diagnosis?.ok ? diagnosis.detail : null,
+    diagnoseFailed: diagnoseError !== null,
+    day: risk ? worstDayDetail(risk.days) : null,
+  });
 
   async function takePhoto(file: File | undefined) {
     if (!file) return;
@@ -269,6 +338,23 @@ export function HomeFlow() {
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-5 px-3 py-6">
       <p className="font-semibold tracking-wide text-[#1E5B2A]">AgroClima</p>
       {step === "foto" ? (
+        <>
+        <DepartmentRiskMap
+          status={departmentStatus}
+          map={departmentMap}
+          selected={selectedDepartment}
+          onSelect={setSelectedDepartment}
+          onRetry={() => {
+            setDepartmentMap(null);
+            setDepartmentStatus("loading");
+            setDepartmentAttempt((value) => value + 1);
+          }}
+          onOpenMunicipalities={(name) => {
+            selectDepartment(name);
+            document.getElementById("lista-municipios")?.scrollIntoView({ block: "start" });
+          }}
+        />
+        <AgentStepper steps={steps} />
         <FotoStep
           placeId={placeId}
           geoNote={geoNote}
@@ -287,16 +373,9 @@ export function HomeFlow() {
           coordType={place?.coordType ?? null}
           risk={risk}
           riskState={riskState}
+          worstLine={worstLine}
           onRiskRetry={() => void loadRisk(placeId)}
-          onDepartment={(value) => {
-            setDepartment(value);
-            setMunicipalityQuery("");
-            const current = placeById(placeId);
-            if (current && current.department !== value) {
-              setPlaceId("");
-              setRisk(null);
-            }
-          }}
+          onDepartment={selectDepartment}
           onMunicipalityQuery={(value) => {
             setMunicipalityQuery(value);
             const visible = filterPlacesByName(placesInDepartment(department), value);
@@ -323,7 +402,10 @@ export function HomeFlow() {
           onFile={(file) => void takePhoto(file)}
           onReview={() => void review()}
         />
-      ) : null}
+        </>
+      ) : (
+        <AgentStepper steps={steps} />
+      )}
       {step === "resultado" ? (
         <ResultStep
           diagnosis={diagnosis}
@@ -338,6 +420,8 @@ export function HomeFlow() {
           onRiskRetry={() => void loadRisk(placeId)}
           onShare={() => void share()}
           onRetake={() => setStep("foto")}
+          why={why}
+          onConsult={() => void share()}
         />
       ) : null}
       {step === "riesgo" ? (
@@ -345,7 +429,8 @@ export function HomeFlow() {
           {riskState === "failed" && diagnosis?.ok ? (
             <>
               <h1 className="text-[30px] font-semibold leading-tight">{diagnosis.headline}</h1>
-              <p>{diagnosis.detail}</p>
+              <OrientationTag />
+              {diagnosis.detail ? <p>{diagnosis.detail}</p> : null}
             </>
           ) : null}
           <RiskPanel
@@ -357,6 +442,7 @@ export function HomeFlow() {
             coordType={place?.coordType ?? null}
           />
           <QueHacerHoy level={todayRiskLevel(risk)} />
+          {why ? <WhyPanel model={why} onConsult={() => void share()} /> : null}
           {riskState === "failed" ? (
             <button type="button" className={secondary} onClick={() => void share()}>
               Compartir con mi agrónomo
@@ -401,19 +487,24 @@ export function HomeFlow() {
             }
             onShare={() => void share()}
           />
+          {why ? <WhyPanel model={why} onConsult={() => void share()} /> : null}
           <button type="button" className={primary} onClick={() => setStep("compartir")}>
             Escuchar o compartir
           </button>
         </>
       ) : null}
       {step === "compartir" ? (
-        <ShareStep
-          summary={shareSummary(diagnosis, diagnoseError)}
-          placeName={place?.name ?? ""}
-          spoken={spoken}
-          onShare={() => void share()}
-          onReset={reset}
-        />
+        <>
+          {why?.showTechnician ? <OrientationTag /> : null}
+          <ShareStep
+            summary={shareSummary(diagnosis, diagnoseError)}
+            placeName={place?.name ?? ""}
+            spoken={spoken}
+            onShare={() => void share()}
+            onReset={reset}
+          />
+          {why ? <WhyPanel model={why} onConsult={() => void share()} /> : null}
+        </>
       ) : null}
       <ListenButton text={spoken} />
     </main>
@@ -438,6 +529,7 @@ function FotoStep({
   coordType,
   risk,
   riskState,
+  worstLine,
   onDepartment,
   onMunicipalityQuery,
   onPlace,
@@ -464,6 +556,7 @@ function FotoStep({
   coordType: "town_centre" | "slope_point" | null;
   risk: RiskView | null;
   riskState: "idle" | "loading" | "failed";
+  worstLine: string | null;
   onDepartment: (department: string) => void;
   onMunicipalityQuery: (query: string) => void;
   onPlace: (id: string) => void;
@@ -476,7 +569,6 @@ function FotoStep({
   const matches = filterPlacesByName(placesInDepartment(department), municipalityQuery);
   const municipalityValue = matches.some((place) => place.id === placeId) ? placeId : "";
 
-  const worstLine = risk ? pinCardLine(risk.days) : null;
   const gpsLine = gpsRisk ? pinCardLine(gpsRisk.days) : null;
 
   return (
@@ -641,6 +733,8 @@ function ResultStep({
   onRiskRetry,
   onShare,
   onRetake,
+  why,
+  onConsult,
 }: {
   diagnosis: Diagnosis | null;
   diagnoseError: DiagnoseError | null;
@@ -654,6 +748,8 @@ function ResultStep({
   onRiskRetry: () => void;
   onShare: () => void;
   onRetake: () => void;
+  why: WhyModel | null;
+  onConsult: () => void;
 }) {
   return (
     <div className="flex flex-col gap-4">
@@ -670,6 +766,7 @@ function ResultStep({
           <h1 className="text-[30px] font-semibold leading-tight">
             {diagnosisStatusCopy(diagnoseError)}
           </h1>
+          <OrientationTag />
           <button type="button" className={primary} onClick={onRetry}>
             {RETRY_LABEL}
           </button>
@@ -695,6 +792,7 @@ function ResultStep({
         />
       ) : null}
       <QueHacerHoy level={todayRiskLevel(risk)} />
+      {why ? <WhyPanel model={why} onConsult={onConsult} /> : null}
     </div>
   );
 }
@@ -718,7 +816,8 @@ function DiagnosisBody({
       <h1 className="text-[30px] font-semibold leading-tight" aria-live="polite">
         {diagnosis.headline}
       </h1>
-      <p>{diagnosis.detail}</p>
+      <OrientationTag />
+      {diagnosis.detail ? <p>{diagnosis.detail}</p> : null}
       {diagnosis.advice ? (
         <article className="rounded-2xl bg-[#FFF1C2] p-4 text-[#6B4B00]">
           <h2 className="text-2xl font-semibold">Consejo</h2>
@@ -871,12 +970,7 @@ function resultSpeech(
 }
 
 function planSpeech(risk: RiskView): string {
-  return [
-    `Qué. Clase de fungicida: ${risk.plan.fungicideClasses.join(", ")}.`,
-    `Cuánto. ${risk.plan.doseNote}.`,
-    `Cuándo. Próximo día seco para fumigar. ${formatSprayWindow(risk.plan.nextDryWindow)}.`,
-    "Use guantes y mascarilla. Lea la etiqueta.",
-  ].join(" ");
+  return actionPlanSpeech(risk.plan);
 }
 
 function weekSpeech(

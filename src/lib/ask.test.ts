@@ -686,6 +686,9 @@ describe("ask AgroClima", () => {
     assert.equal(diagnosisMeaning("No seguro · 40 %"), DIAGNOSIS_LEVEL_MEANINGS.unsure);
     assert.equal(diagnosisMeaning("No estamos seguros."), DIAGNOSIS_LEVEL_MEANINGS.unsure);
     assert.equal(diagnosisMeaning("Parece sana. Revise otras plantas."), null);
+    assert.equal(diagnosisMeaning("Alta"), DIAGNOSIS_LEVEL_MEANINGS.seguro);
+    assert.equal(diagnosisMeaning("Media"), DIAGNOSIS_LEVEL_MEANINGS.probable);
+    assert.equal(diagnosisMeaning("Baja"), DIAGNOSIS_LEVEL_MEANINGS.unsure);
     const notes = Object.values(DIAGNOSIS_LEVEL_MEANINGS).join(" ");
     assert.equal(/\b(dosis|fungicid\w*|producto|marca|ml|químico)\b/i.test(notes), false);
     assert.match(notes, /no una confirmación/);
