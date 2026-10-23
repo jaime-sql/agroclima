@@ -10,7 +10,7 @@ export const ORIENTATION_TAG = "Orientativo \u2014 no es un diagnóstico";
  * and only on a diagnosis result. Not the weather engine's level.
  */
 export const DETECTION_NOTE =
-  "Detección de roya: acierto 73% (IC 95% 68\u201379%) en 252 fotos públicas de hojas de Brasil (BRACOL, CC BY 4.0), tomadas en laboratorio, no en El Salvador. Detecta 58% de las hojas con roya. No es un diagnóstico; consulte a un técnico.";
+  "En pruebas con 252 fotos públicas de Brasil, acertó roya o no roya en 73 de cada 100.";
 
 /** Grey that stays at least 4.5:1 on the white why panel. */
 export const DETECTION_NOTE_COLOR = "#57534E";

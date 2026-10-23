@@ -15,6 +15,8 @@ export type DepartmentShape = {
   d: string;
   labelX: number;
   labelY: number;
+  boxX: number;
+  boxY: number;
   boxWidth: number;
   boxHeight: number;
 };
@@ -159,6 +161,8 @@ export function projectDepartments(geojson: DepartmentGeoJson): ProjectedDepartm
       d,
       labelX,
       labelY,
+      boxX: minX,
+      boxY: minY,
       boxWidth: maxX - minX,
       boxHeight: maxY - minY,
     };

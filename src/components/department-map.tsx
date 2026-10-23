@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo } from "react";
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import departmentsGeo from "../../data/dept_map/departments.geojson";
-import { projectDepartments } from "@/lib/map/department-geometry";
+import { MAP_TARGET_PX, projectDepartments } from "@/lib/map/department-geometry";
+import { placeDepartmentLabels } from "@/lib/map/department-label";
 import { levelWord } from "@/lib/format";
 import {
   FORECAST_MISSING_COPY,
@@ -86,23 +86,47 @@ export function DepartmentRiskMap({
   onOpenMunicipalities: (name: string) => void;
 }) {
   const [asList, setAsList] = useState(false);
+  const frame = useRef<HTMLDivElement>(null);
+  const [displayWidth, setDisplayWidth] = useState(MAP_TARGET_PX);
   const liveByName = useMemo(
     () => new Map((map?.departments ?? []).map((item) => [item.name, item])),
     [map],
   );
+  const wide = displayWidth >= 480;
+  const labels = useMemo(
+    () =>
+      placeDepartmentLabels({
+        shapes: SHAPES.shapes,
+        mapWidth: SHAPES.width,
+        mapHeight: SHAPES.height,
+        displayWidth: Math.max(displayWidth, 1),
+        wide,
+        levelFor: (name) => {
+          const entry = CATALOG.get(name);
+          const live = liveByName.get(name) ?? null;
+          if (!entry?.hasPoints) return "Sin datos";
+          if (status !== "ready") return "";
+          if (live?.level) return levelWord(live.level);
+          return "Sin datos";
+        },
+      }),
+    [displayWidth, wide, status, liveByName],
+  );
+
+  useEffect(() => {
+    const element = frame.current;
+    if (!element) return;
+    const apply = () => setDisplayWidth(element.clientWidth || MAP_TARGET_PX);
+    apply();
+    const observer = new ResizeObserver(apply);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [asList]);
   const selectedView = selected ? (liveByName.get(selected) ?? null) : null;
   const selectedEntry = selected ? (CATALOG.get(selected) ?? null) : null;
 
   return (
     <section id="mapa-departamentos" className="flex flex-col gap-3" aria-label="Mapa de departamentos">
-      <button
-        type="button"
-        className="min-h-14 w-full rounded-2xl bg-white px-4 text-lg font-semibold text-[#1E5B2A] ring-2 ring-[#1E5B2A]"
-        aria-pressed={asList}
-        onClick={() => setAsList((current) => !current)}
-      >
-        {asList ? VIEW_AS_MAP : VIEW_AS_LIST}
-      </button>
       {asList ? (
         <ul className="flex flex-col gap-2">
           {SHAPES.shapes.map((shape) => {
@@ -138,7 +162,7 @@ export function DepartmentRiskMap({
           })}
         </ul>
       ) : (
-        <div className="relative">
+        <div ref={frame} id="dibujo-departamentos" className="relative">
           <svg
             viewBox={`0 0 ${SHAPES.width} ${SHAPES.height}`}
             className="block h-auto w-full"
@@ -192,30 +216,40 @@ export function DepartmentRiskMap({
             })}
           </svg>
           <div className="pointer-events-none absolute inset-0">
-            {SHAPES.shapes.map((shape) => {
-              const entry = CATALOG.get(shape.name);
-              const live = liveByName.get(shape.name) ?? null;
+            {labels.map((label) => {
+              const entry = CATALOG.get(label.name);
+              const live = liveByName.get(label.name) ?? null;
               const paint = paintFor(status, entry?.hasPoints ?? false, live);
               return (
                 <span
-                  key={shape.name}
+                  key={label.name}
+                  data-map-label={label.name}
                   aria-hidden="true"
-                  className="absolute w-24 -translate-x-1/2 -translate-y-1/2 text-center text-[14px] font-bold leading-tight"
+                  className="absolute -translate-x-1/2 -translate-y-1/2 text-center font-bold leading-tight"
                   style={{
-                    left: `${(shape.labelX / SHAPES.width) * 100}%`,
-                    top: `${(shape.labelY / SHAPES.height) * 100}%`,
+                    left: `${label.left}%`,
+                    top: `${label.top}%`,
+                    maxWidth: `${label.maxWidth}%`,
+                    fontSize: `${label.fontPx}px`,
                     color: paint.text,
                     textShadow: "0 0 2px #fff",
                   }}
                 >
-                  <span className="block">{shape.name}</span>
-                  {paint.mapLabel ? <span className="block">{paint.mapLabel}</span> : null}
+                  {label.text}
                 </span>
               );
             })}
           </div>
         </div>
       )}
+      <button
+        type="button"
+        className="min-h-14 w-full rounded-2xl bg-white px-4 text-lg font-semibold text-[#1E5B2A] ring-2 ring-[#1E5B2A]"
+        aria-pressed={asList}
+        onClick={() => setAsList((current) => !current)}
+      >
+        {asList ? VIEW_AS_MAP : VIEW_AS_LIST}
+      </button>
       <ul aria-label="Leyenda" className="flex flex-wrap gap-x-4 gap-y-2">
         {(["alto", "medio", "bajo"] as const).map((level) => (
           <li key={level} className="flex min-h-11 items-center gap-2 text-base font-semibold">

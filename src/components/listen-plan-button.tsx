@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { pickEsVoice } from "@/lib/speech";
+import { AI_VOICE_DISCLOSURE, pickEsVoice } from "@/lib/speech";
 import { LISTEN_FAILED } from "@/lib/tts";
 
 const buttonClass =
@@ -58,7 +58,7 @@ export function ListenPlanButton({ text }: { text: string }) {
       <button type="button" className={buttonClass} onClick={toggle}>
         {playing ? "Pausar" : "Escuchar plan"}
       </button>
-      <p className="text-[14px] text-[#57534E]">Voz generada por IA</p>
+      <p className="text-[13px] leading-5 text-[#57534E]">{AI_VOICE_DISCLOSURE}</p>
       {failed ? <p>{LISTEN_FAILED}</p> : null}
     </div>
   );

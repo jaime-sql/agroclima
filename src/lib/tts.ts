@@ -50,6 +50,75 @@ export function listenFallback(input: {
   return "failed";
 }
 
+/**
+ * Pass the ElevenLabs stream through without reading it.
+ * Workers Free allows 10 ms of CPU. Waiting on the network is not CPU time,
+ * and copying a finished MP3 into the isolate is. A cache hit is returned as
+ * a short stream. A miss is not written back, because that copy would spend
+ * the CPU budget and hold the first byte until the whole file existed.
+ */
+export async function openSpeechStream(options: {
+  text: string;
+  env: TtsEnv;
+  fetchImpl?: typeof fetch;
+  bucket?: AudioBucket | null;
+}): Promise<
+  | { ok: true; body: ReadableStream<Uint8Array>; contentType: "audio/mpeg"; cached: boolean }
+  | { ok: false; error: "unavailable" | "failed" }
+> {
+  if (typeof options.text !== "string") return { ok: false, error: "failed" };
+  const text = capTtsText(options.text);
+  if (!text) return { ok: false, error: "failed" };
+
+  const apiKey = options.env.apiKey?.trim() ?? "";
+  const voiceId = options.env.voiceId?.trim() ?? "";
+  if (!apiKey || !voiceId) return { ok: false, error: "unavailable" };
+
+  const key = await audioCacheKey(text, voiceId);
+  const cached = await readCachedAudio(options.bucket, key);
+  if (cached?.ok) {
+    const bytes = cached.bytes;
+    return {
+      ok: true,
+      body: new ReadableStream({
+        start(controller) {
+          controller.enqueue(bytes);
+          controller.close();
+        },
+      }),
+      contentType: "audio/mpeg",
+      cached: true,
+    };
+  }
+
+  const fetchImpl = options.fetchImpl ?? fetch;
+  let response: Response;
+  try {
+    response = await fetchImpl(`${TTS_ENDPOINT}/${encodeURIComponent(voiceId)}/stream`, {
+      method: "POST",
+      headers: {
+        "xi-api-key": apiKey,
+        "Content-Type": "application/json",
+        Accept: "audio/mpeg",
+      },
+      body: JSON.stringify({
+        text,
+        model_id: TTS_MODEL,
+        optimize_streaming_latency: 3,
+      }),
+    });
+  } catch {
+    return { ok: false, error: "failed" };
+  }
+
+  const contentType = response.headers.get("content-type") ?? "";
+  if (!response.ok || !response.body || !contentType.startsWith("audio/")) {
+    await response.body?.cancel()?.catch(() => undefined);
+    return { ok: false, error: "failed" };
+  }
+  return { ok: true, body: response.body, contentType: "audio/mpeg", cached: false };
+}
+
 export async function synthesizeSpeech(options: {
   text: string;
   env: TtsEnv;

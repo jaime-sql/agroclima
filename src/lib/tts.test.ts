@@ -7,6 +7,7 @@ import {
   audioCacheKey,
   capTtsText,
   listenFallback,
+  openSpeechStream,
   synthesizeSpeech,
   type AudioBucket,
 } from "./tts.ts";
@@ -131,5 +132,63 @@ describe("text to speech", () => {
     assert.equal(listenFallback({ serverAudio: false, hasSpanishVoice: true }), "browser");
     assert.equal(listenFallback({ serverAudio: true, hasSpanishVoice: false }), "server");
     assert.equal(listenFallback({ serverAudio: false, hasSpanishVoice: false }), "failed");
+  });
+
+  it("streams ElevenLabs audio without reading the body, and replays a cache hit", async () => {
+    const text = "Riesgo alto. Siguiente paso: fumigar. Consulte a un técnico.";
+    const streamed = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(Uint8Array.from([9, 8, 7]));
+        controller.close();
+      },
+    });
+    let calls = 0;
+    const fetchImpl: typeof fetch = async (input, init) => {
+      calls += 1;
+      assert.equal(String(input), "https://api.elevenlabs.io/v1/text-to-speech/voice-1/stream");
+      const body = JSON.parse(String(init?.body)) as {
+        text: string;
+        model_id: string;
+        optimize_streaming_latency: number;
+      };
+      assert.equal(body.text, text);
+      assert.equal(body.model_id, TTS_MODEL);
+      assert.equal(body.optimize_streaming_latency, 3);
+      return new Response(streamed, { headers: { "Content-Type": "audio/mpeg" } });
+    };
+    const opened = await openSpeechStream({
+      text,
+      env: { apiKey: "secret", voiceId: "voice-1" },
+      fetchImpl,
+    });
+    assert.equal(calls, 1);
+    assert.equal(opened.ok && opened.cached, false);
+    if (opened.ok) assert.equal(opened.body, streamed);
+
+    const bucket = memoryBucket();
+    const fetchOnce: typeof fetch = async () =>
+      new Response(Uint8Array.from([4, 5]), { headers: { "Content-Type": "audio/mpeg" } });
+    await synthesizeSpeech({
+      text,
+      env: { apiKey: "secret", voiceId: "voice-1" },
+      fetchImpl: fetchOnce,
+      bucket,
+    });
+    let streamedAgain = false;
+    const hit = await openSpeechStream({
+      text,
+      env: { apiKey: "secret", voiceId: "voice-1" },
+      fetchImpl: async () => {
+        streamedAgain = true;
+        return new Response("no");
+      },
+      bucket,
+    });
+    assert.equal(streamedAgain, false);
+    assert.equal(hit.ok && hit.cached, true);
+    if (hit.ok) {
+      const replay = new Uint8Array(await new Response(hit.body).arrayBuffer());
+      assert.deepEqual([...replay], [4, 5]);
+    }
   });
 });
