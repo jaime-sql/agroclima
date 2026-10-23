@@ -83,9 +83,7 @@ These are public lab photos from Brazil (BRACOL, CC BY 4.0), not photos from El 
 
 ### Decision
 
-The app shows no accuracy figure. «Consultar a un técnico» is always visible on any roya answer.
-
-The run does not support presenting diagnosis accuracy as a strength. The app does not beat «always not rust» or the colour baseline, and the confidence percentage should not be shown.
+The leaf diagnosis shows no confidence word or percentage, and has a fixed grey tag «Orientativo — no es un diagnóstico». «Consultar a un técnico» is always visible on diagnosis results. The on-screen line, verbatim, appears in small grey text inside the panel and in the video's trust section.
 
 ### On-screen line
 
