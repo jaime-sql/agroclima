@@ -17,6 +17,7 @@ import {
   ASK_SOURCE,
   ASK_SYSTEM_PROMPT,
   askClientCard,
+  askSpokenText,
   shouldRetryAskClient,
   ASK_TOO_LONG,
   ASK_UNAVAILABLE,
@@ -117,10 +118,9 @@ describe("ask AgroClima", () => {
       },
     });
     assert.equal(result.ok, true);
-    assert.equal(
-      result.answer,
-      "El lunes el riesgo es alto. Consulte a su agrónomo. Horas húmedas ese día: 11.",
-    );
+    assert.equal(result.answer, "El lunes el riesgo es alto. Consulte a su agrónomo.");
+    assert.equal(result.answer.includes("Horas húmedas"), false);
+    assert.equal(result.wetHoursNote, "Horas húmedas ese día: 11.");
     assert.equal(result.wetHoursAppended, true);
     assert.equal(model, "gpt-4.1-mini");
     assert.equal(maxTokens, ASK_MAX_REPLY_TOKENS);
@@ -316,11 +316,37 @@ describe("ask AgroClima", () => {
     assert.deepEqual(askClientCard({}), { kind: "failure" });
     assert.deepEqual(
       askClientCard({ ok: true, answer: "El lunes el riesgo es alto.", refused: false }),
-      { kind: "answer", text: "El lunes el riesgo es alto.", refused: false },
+      { kind: "answer", text: "El lunes el riesgo es alto.", refused: false, wetHoursNote: null },
     );
     assert.deepEqual(
+      askClientCard({
+        ok: true,
+        answer: "El lunes el riesgo es alto.",
+        refused: false,
+        wetHoursNote: "Horas húmedas ese día: 6.",
+      }),
+      {
+        kind: "answer",
+        text: "El lunes el riesgo es alto.",
+        refused: false,
+        wetHoursNote: "Horas húmedas ese día: 6.",
+      },
+    );
+    assert.equal(askSpokenText("El lunes el riesgo es alto.", "Horas húmedas ese día: 6."), "El lunes el riesgo es alto. Horas húmedas ese día: 6.");
+    assert.equal(askSpokenText("El lunes el riesgo es alto.", null), "El lunes el riesgo es alto.");
+    assert.deepEqual(
       askClientCard({ ok: false, error: "refused", answer: ASK_REFUSAL, refused: true }),
-      { kind: "answer", text: ASK_REFUSAL, refused: true },
+      { kind: "answer", text: ASK_REFUSAL, refused: true, wetHoursNote: null },
+    );
+    assert.deepEqual(
+      askClientCard({
+        ok: false,
+        error: "refused",
+        answer: ASK_REFUSAL,
+        refused: true,
+        wetHoursNote: "Horas húmedas ese día: 6.",
+      }),
+      { kind: "answer", text: ASK_REFUSAL, refused: true, wetHoursNote: null },
     );
   });
 
@@ -378,6 +404,8 @@ describe("ask AgroClima", () => {
     });
     assert.equal(refused.refused, true);
     assert.equal(refused.answer, ASK_REFUSAL);
+    assert.equal(refused.wetHoursNote, null);
+    assert.equal(refused.wetHoursAppended, false);
     assert.equal(refused.calledModel, true);
   });
 
@@ -521,6 +549,8 @@ describe("ask AgroClima", () => {
     assert.equal(refused.refused, true);
     assert.equal(refused.status, 200);
     assert.equal(refused.answer, ASK_REFUSAL);
+    assert.equal(refused.wetHoursNote, null);
+    assert.equal(refused.wetHoursAppended, false);
   });
 
   it("refuses doses, products, overrides and other crops before any model call", async () => {
@@ -564,6 +594,8 @@ describe("ask AgroClima", () => {
       assert.equal(result.calledModel, false, question);
       assert.equal(result.status, 200, question);
       assert.equal(result.answer, ASK_REFUSAL, question);
+      assert.equal(result.wetHoursNote, null, question);
+      assert.equal(result.wetHoursAppended, false, question);
       assert.equal(result.error, "refused", question);
       assert.deepEqual(costHeaders(result), {});
       assert.equal(askHeaders(result).get("X-Agroclima-Backend"), "direct");
@@ -839,6 +871,8 @@ describe("ask AgroClima", () => {
     assert.equal(called, false);
     assert.equal(refused.status, 200);
     assert.equal(refused.answer, ASK_REFUSAL);
+    assert.equal(refused.wetHoursNote, null);
+    assert.equal(refused.wetHoursAppended, false);
     assert.equal(refused.refused, true);
     assert.equal(refused.calledModel, false);
   });
@@ -865,7 +899,7 @@ describe("ask AgroClima", () => {
     assert.equal(headers.get("Cache-Control"), "no-store");
   });
 
-  it("appends wet hours when a fake model states the risk and omits the count", async () => {
+  it("returns a wet-hours note when a fake model states the risk and omits the count", async () => {
     const question = "¿Cómo va el riesgo del lunes?";
     const logs = captureLogs();
     try {
@@ -883,8 +917,9 @@ describe("ask AgroClima", () => {
             usage: { prompt_tokens: 4, completion_tokens: 3 },
           }),
       });
-      assert.equal(result.answer, "El lunes el riesgo es alto. Horas húmedas ese día: 6.");
-      assert.equal(result.answer.split("Horas húmedas ese día:").length, 2);
+      assert.equal(result.answer, "El lunes el riesgo es alto.");
+      assert.equal(result.answer.includes("Horas húmedas"), false);
+      assert.equal(result.wetHoursNote, "Horas húmedas ese día: 6.");
       assert.equal(result.wetHoursAppended, true);
       assert.equal(result.backend, "direct");
       const headers = askHeaders(result);
@@ -919,6 +954,7 @@ describe("ask AgroClima", () => {
           }),
       });
       assert.equal(result.answer, "El lunes el riesgo es alto, con 6 horas húmedas.");
+      assert.equal(result.wetHoursNote, null);
       assert.equal(result.wetHoursAppended, false);
       assert.equal(askHeaders(result).get("X-Agroclima-Wet-Hours-Appended"), "false");
       assert.equal(logs.lines().some((line) => line.includes("ask_wet_hours_appended")), false);
@@ -941,8 +977,10 @@ describe("ask AgroClima", () => {
           choices: [{ message: { content: "Esta semana el riesgo es alto." } }],
         }),
     });
+    assert.equal(result.answer, "Esta semana el riesgo es alto.");
+    assert.equal(result.answer.includes("Horas húmedas"), false);
+    assert.equal(result.wetHoursNote, "Horas húmedas: lunes 12 oct, 6; martes 13 oct, 3.");
     assert.equal(result.wetHoursAppended, true);
-    assert.match(result.answer, /Horas húmedas: lunes 12 oct, 6; martes 13 oct, 3\./);
     assert.equal(askHeaders(result).get("X-Agroclima-Wet-Hours-Appended"), "true");
     const named = await answerQuestion({
       body: {
@@ -963,6 +1001,7 @@ describe("ask AgroClima", () => {
           ],
         }),
     });
+    assert.equal(named.wetHoursNote, null);
     assert.equal(named.wetHoursAppended, false);
     assert.equal(named.answer.includes("Horas húmedas:"), false);
   });
@@ -981,7 +1020,9 @@ describe("ask AgroClima", () => {
           choices: [{ message: { content: "Esta semana el riesgo es alto." } }],
         }),
     });
-    assert.equal(result.answer, "Esta semana el riesgo es alto. Horas húmedas en el día de mayor riesgo: 21.");
+    assert.equal(result.answer, "Esta semana el riesgo es alto.");
+    assert.equal(result.answer.includes("Horas húmedas"), false);
+    assert.equal(result.wetHoursNote, "Horas húmedas en el día de mayor riesgo: 21.");
     assert.equal(result.wetHoursAppended, true);
     assert.equal(askHeaders(result).get("X-Agroclima-Wet-Hours-Appended"), "true");
     const stated = await answerQuestion({
@@ -997,6 +1038,7 @@ describe("ask AgroClima", () => {
           choices: [{ message: { content: "Esta semana el riesgo es alto, con 21 horas húmedas." } }],
         }),
     });
+    assert.equal(stated.wetHoursNote, null);
     assert.equal(stated.wetHoursAppended, false);
     assert.equal(stated.answer, "Esta semana el riesgo es alto, con 21 horas húmedas.");
     assert.equal(stated.answer.includes("día de mayor riesgo"), false);
@@ -1184,6 +1226,7 @@ describe("ask AgroClima", () => {
       assert.equal(result.attempts, 2);
       assert.equal(result.retries, 1);
       assert.equal(result.firstAttempt, "reset");
+      assert.equal(result.wetHoursNote, null);
       assert.equal(result.wetHoursAppended, false);
       assert.equal(result.answer.includes("Horas húmedas ese día"), false);
       const headers = askHeaders(result);

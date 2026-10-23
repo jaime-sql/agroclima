@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     const raw = await request.text();
     if (raw.length > MAX_BODY) {
       return Response.json(
-        { ok: false, error: "too_long", answer: ASK_TOO_LONG },
+        { ok: false, error: "too_long", answer: ASK_TOO_LONG, wetHoursNote: null },
         { status: 400, headers: askGuardHeaders() },
       );
     }
@@ -28,7 +28,7 @@ export async function POST(request: Request) {
       body = JSON.parse(raw);
     } catch {
       return Response.json(
-        { ok: false, error: "invalid", answer: ASK_INVALID },
+        { ok: false, error: "invalid", answer: ASK_INVALID, wetHoursNote: null },
         { status: 400, headers: askGuardHeaders() },
       );
     }
@@ -48,13 +48,19 @@ export async function POST(request: Request) {
       evalToken: force.evalToken,
     });
     return Response.json(
-      { ok: result.ok, error: result.error, answer: result.answer, refused: result.refused },
+      {
+        ok: result.ok,
+        error: result.error,
+        answer: result.answer,
+        refused: result.refused,
+        wetHoursNote: result.wetHoursNote,
+      },
       { status: result.status, headers: askHeaders(result) },
     );
   } catch {
     logAskEvent("ask_handler", "direct", Date.now() - started, "error");
     return Response.json(
-      { ok: false, error: "failed", answer: ASK_TRY_AGAIN, refused: false },
+      { ok: false, error: "failed", answer: ASK_TRY_AGAIN, refused: false, wetHoursNote: null },
       { status: 502, headers: askGuardHeaders() },
     );
   }

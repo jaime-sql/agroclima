@@ -1,3 +1,4 @@
+import { mkdirSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 import { sinDatosDepartments } from "./department-stub.ts";
 
@@ -188,4 +189,47 @@ test("Intentar de nuevo sends the kept question once the route works", async ({ 
   await expect(page.getByText("No pudimos responder ahora. Intente de nuevo.")).toHaveCount(0);
   await expect(page.locator("#agroclima-pregunta")).toHaveValue(QUESTION);
   expect(calls).toBe(before + 1);
+});
+
+test("a mocked ask shows the wet-hours note under the answer", async ({ page }) => {
+  test.setTimeout(60_000);
+  const note = "Horas húmedas ese día: 6.";
+  await openAsk(page);
+  await page.route("**/api/ask", async (route) => {
+    await route.fulfill({
+      json: { ok: true, answer: ANSWER, refused: false, wetHoursNote: note },
+    });
+  });
+  await sendQuestion(page);
+  const block = page.getByTestId("ask-answer-block");
+  const bubble = block.locator("article");
+  await expect(bubble.getByText(ANSWER, { exact: true })).toBeVisible();
+  await expect(bubble.getByText(note)).toHaveCount(0);
+  const noteEl = block.getByTestId("ask-wet-hours-note");
+  await expect(noteEl).toHaveText(note);
+  const bubbleBox = await bubble.boundingBox();
+  const noteBox = await noteEl.boundingBox();
+  expect(bubbleBox).toBeTruthy();
+  expect(noteBox).toBeTruthy();
+  expect(noteBox!.y).toBeGreaterThan(bubbleBox!.y + bubbleBox!.height - 1);
+  const style = await noteEl.evaluate((el) => {
+    const computed = getComputedStyle(el);
+    return {
+      fontSize: parseFloat(computed.fontSize),
+      color: computed.color,
+      borderTopWidth: computed.borderTopWidth,
+    };
+  });
+  expect(style.fontSize).toBeGreaterThanOrEqual(14);
+  expect(style.color).toBe("rgb(28, 25, 23)");
+  expect(style.borderTopWidth).toBe("0px");
+  await expect(block.getByRole("button", { name: "▶ Escuchar" })).toHaveAttribute(
+    "data-spoken",
+    `${ANSWER} ${note}`,
+  );
+  await noteEl.scrollIntoViewIfNeeded();
+  mkdirSync("docs/screenshots", { recursive: true });
+  mkdirSync("e2e/output", { recursive: true });
+  await page.screenshot({ path: "docs/screenshots/ask-wet-hours-note-390.png" });
+  await page.screenshot({ path: "e2e/output/ask-wet-hours-note-390.png" });
 });

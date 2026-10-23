@@ -95,7 +95,7 @@ export function shouldRetryAskClient(attempt: number, hasJsonBody: boolean): boo
 }
 
 export type AskClientCard =
-  | { kind: "answer"; text: string; refused: boolean }
+  | { kind: "answer"; text: string; refused: boolean; wetHoursNote: string | null }
   | { kind: "failure" };
 
 /** A JSON body is never retried. Errors use the failure card. A refusal stays an answer. */
@@ -106,13 +106,22 @@ export function askClientCard(payload: unknown): AskClientCard {
     answer?: unknown;
     refused?: unknown;
     error?: unknown;
+    wetHoursNote?: unknown;
   };
   const text = typeof record.answer === "string" ? record.answer : "";
   if (!text) return { kind: "failure" };
   const refused =
     record.refused === true || record.error === "refused" || text === ASK_REFUSAL;
-  if (refused || record.ok === true) return { kind: "answer", text, refused };
+  const note = typeof record.wetHoursNote === "string" ? record.wetHoursNote.trim() : "";
+  const wetHoursNote = refused || !note ? null : note;
+  if (refused || record.ok === true) return { kind: "answer", text, refused, wetHoursNote };
   return { kind: "failure" };
+}
+
+/** Spoken text for Escuchar: the answer, then the wet-hours note when there is one. */
+export function askSpokenText(answer: string, wetHoursNote: string | null): string {
+  if (!wetHoursNote) return answer;
+  return `${answer} ${wetHoursNote}`;
 }
 
 export type AskBackend = "blaxel" | "direct";
@@ -123,6 +132,7 @@ export type AskAnswer = AskResult & {
   firstAttempt: AskAttemptOutcome;
   retries: 0 | 1;
   wetHoursAppended: boolean;
+  wetHoursNote: string | null;
 };
 
 export type AskBudgets = {
@@ -251,6 +261,7 @@ export function askGuardHeaders(): Headers {
     firstAttempt: "none",
     retries: 0,
     wetHoursAppended: false,
+    wetHoursNote: null,
   });
 }
 
@@ -359,6 +370,7 @@ function seal(result: AskResult, backend: AskBackend, trace: AskTrace): AskAnswe
     firstAttempt: trace.attempts === 0 ? "none" : trace.firstAttempt,
     retries: trace.retries,
     wetHoursAppended: false,
+    wetHoursNote: null,
   };
 }
 
@@ -367,8 +379,21 @@ function finish(result: AskResult, backend: AskBackend, trace: AskTrace, groundi
   if (!traced.ok || traced.refused) return traced;
   const ensured = ensureWetHours(traced.answer, grounding);
   if (!ensured.appended) return traced;
+  const note = wetHoursNoteFromAppend(traced.answer, ensured.answer);
+  if (!note) return traced;
   logAskEvent("ask_wet_hours_appended", backend, traced.latencyMs);
-  return { ...traced, answer: ensured.answer, wetHoursAppended: true };
+  return { ...traced, wetHoursNote: note, wetHoursAppended: true };
+}
+
+/** The generator still builds answer + sentence. The response keeps them apart. */
+function wetHoursNoteFromAppend(answer: string, combined: string): string | null {
+  const trimmed = answer.trim();
+  const gap = /[.!?…]$/.test(trimmed) ? " " : ". ";
+  const prefix = `${trimmed}${gap}`;
+  if (!combined.startsWith(prefix)) return null;
+  const note = combined.slice(prefix.length).trim();
+  if (!note.startsWith("Horas húmedas")) return null;
+  return note;
 }
 
 function transportFailure(outcome: AskAttemptOutcome): AskResult {

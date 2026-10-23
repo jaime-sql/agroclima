@@ -4,7 +4,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { formatChipDate, formatWeekday, levelMark, levelWord } from "../src/lib/format.ts";
 import { project } from "../src/lib/map/cluster.ts";
 import { RISK_CUTOFF_FOOTER } from "../src/lib/risk/assess.ts";
-import { FAR_GPS_NOTE, GRID_POINT_NOTE, MUNICIPALITY_CENTRE_NOTE, farGpsTitle } from "../src/lib/risk/gps.ts";
+import { FAR_GPS_NOTE, GRID_POINT_NOTE, MUNICIPALITY_CENTRE_NOTE } from "../src/lib/risk/gps.ts";
 import { pinCardLine } from "../src/lib/risk/pin-card.ts";
 import type { RiskLevel } from "../src/lib/risk/types.ts";
 import { RISK_ZONE_NOTE } from "../src/lib/vision/copy.ts";
@@ -484,7 +484,7 @@ test("gps far from every pin keeps the location title and the worst line", async
   const card = page.locator("div.flex.flex-col.gap-3").filter({
     has: page.getByRole("heading", { name: "Riesgo de roya esta semana" }),
   });
-  await expect(card.getByRole("heading", { name: farGpsTitle(812) })).toBeVisible();
+  await expect(card.getByRole("heading", { name: "Su ubicación (aproximada) · 812 m de altitud" })).toBeVisible();
   await expect(card.getByText(FAR_GPS_NOTE)).toHaveCount(1);
   await expect(card.getByText("Toda la semana: alto")).toBeVisible();
   await expect(card.getByText("Toque un día")).toBeVisible();
@@ -521,7 +521,7 @@ test("gps far from every pin names the first worst day of a mixed week", async (
   const card = page.locator("div.flex.flex-col.gap-3").filter({
     has: page.getByRole("heading", { name: "Riesgo de roya esta semana" }),
   });
-  await expect(card.getByRole("heading", { name: farGpsTitle(812) })).toBeVisible();
+  await expect(card.getByRole("heading", { name: "Su ubicación (aproximada) · 812 m de altitud" })).toBeVisible();
   await expect(card.getByText(FAR_GPS_NOTE)).toHaveCount(1);
   await expectMixedWorstDay(card);
   await expect(card.getByText(GRID_POINT_NOTE)).toHaveCount(0);

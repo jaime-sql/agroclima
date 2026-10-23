@@ -40,7 +40,7 @@ describe("gps cases", () => {
     assert.equal(screen.highlightId, null);
     assert.equal(screen.showMunicipalityNote, false);
     assert.equal(screen.title, farGpsTitle(812));
-    assert.equal(screen.title, "Su ubicación (aproximada) · 812 m");
+    assert.equal(screen.title, "Su ubicación (aproximada) · 812 m de altitud");
     assert.equal(
       screen.note,
       "No hay un pin cercano en el mapa. Puede elegir un municipio para comparar.",

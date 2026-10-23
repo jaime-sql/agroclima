@@ -12,6 +12,7 @@ import {
   ASK_RETRYING,
   ASK_SOURCE,
   ASK_SHARE,
+  askSpokenText,
   shouldRetryAskClient,
   type AskClientCard,
   type AskDay,
@@ -22,7 +23,7 @@ import { SmallListen } from "./listen-button";
 const field =
   "min-h-14 w-full rounded-2xl bg-white px-4 text-lg text-[#1C1917] ring-2 ring-[#1E5B2A]";
 
-type Answer = { id: number; text: string; refused: boolean };
+type Answer = { id: number; text: string; refused: boolean; wetHoursNote: string | null };
 
 export function AskBox({
   place,
@@ -67,7 +68,12 @@ export function AskBox({
       const answer = card;
       setAnswers((current) => [
         ...current,
-        { id: current.length + 1, text: answer.text, refused: answer.refused },
+        {
+          id: current.length + 1,
+          text: answer.text,
+          refused: answer.refused,
+          wetHoursNote: answer.wetHoursNote,
+        },
       ]);
     } finally {
       setPending(false);
@@ -154,24 +160,34 @@ export function AskBox({
               {retrying ? ASK_RETRYING : null}
             </p>
           ) : null}
-          {answers.map((item) => (
-            <article key={item.id} className="flex flex-col gap-2 rounded-2xl bg-white p-4">
-              <div className="flex items-start gap-3">
-                <p className="flex-1">{item.text}</p>
-                <SmallListen text={item.text} />
+          {answers.map((item) => {
+            const spoken = askSpokenText(item.text, item.wetHoursNote);
+            return (
+              <div key={item.id} data-testid="ask-answer-block" className="flex flex-col gap-2">
+                <article className="flex flex-col gap-2 rounded-2xl bg-white p-4">
+                  <div className="flex items-start gap-3">
+                    <p className="flex-1">{item.text}</p>
+                    <SmallListen text={spoken} />
+                  </div>
+                  <p>{ASK_SOURCE}</p>
+                  {item.refused ? (
+                    <button
+                      type="button"
+                      className="min-h-14 w-full rounded-2xl bg-[#1E5B2A] px-4 text-lg font-semibold text-white"
+                      onClick={onShare}
+                    >
+                      {ASK_SHARE}
+                    </button>
+                  ) : null}
+                </article>
+                {item.wetHoursNote ? (
+                  <p data-testid="ask-wet-hours-note" className="text-base text-[#1c1917]">
+                    {item.wetHoursNote}
+                  </p>
+                ) : null}
               </div>
-              <p>{ASK_SOURCE}</p>
-              {item.refused ? (
-                <button
-                  type="button"
-                  className="min-h-14 w-full rounded-2xl bg-[#1E5B2A] px-4 text-lg font-semibold text-white"
-                  onClick={onShare}
-                >
-                  {ASK_SHARE}
-                </button>
-              ) : null}
-            </article>
-          ))}
+            );
+          })}
           {failed && !pending ? (
             <article className="flex flex-col gap-2 rounded-2xl bg-white p-4">
               <p>{ASK_CLIENT_FAILED}</p>

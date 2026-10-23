@@ -229,8 +229,43 @@ test("a leaf result hides the model score and keeps the technician button", asyn
   await expect(page.getByText("Alto", { exact: true }).first()).toBeVisible();
   await page.getByRole("button", { name: "Ver mi plan" }).click();
   await expect(page.locator("#plan-escrito")).toBeVisible();
-  await expect(page.getByText("Voz generada por IA", { exact: true })).toBeVisible();
+  await expect(page.locator("#plan-escrito").getByText("Voz generada por IA", { exact: true })).toBeVisible();
   await page.locator("#plan-escrito").screenshot({ path: "docs/screenshots/escuchar-plan.png" });
-  await page.getByRole("button", { name: "Escuchar plan" }).click();
+  await page.locator("#plan-escrito").getByRole("button", { name: "Escuchar plan" }).click();
   expect(tts).toEqual([]);
+});
+
+test("the department map fills a wide column and stays inside a phone", async ({ page }) => {
+  test.setTimeout(60_000);
+  await installOpening(page, fixtureWeek("dr03_clear_high.json"));
+  await page.goto("/");
+  const svg = page.locator("#mapa-departamentos svg");
+  const drawing = page.locator("#dibujo-departamentos");
+  const narrow = await svg.boundingBox();
+  expect(narrow?.width ?? 0).toBeGreaterThan(320);
+  expect(narrow?.width ?? 0).toBeLessThan(420);
+  const labels = page.locator("[data-map-label]");
+  await expect(labels).toHaveCount(14);
+  for (const text of await labels.allTextContents()) {
+    expect(text.includes("puntos")).toBe(false);
+  }
+  await expect(page.locator('[data-map-label="La Libertad"]')).toHaveText("Alto");
+  await expect(page.locator('[data-map-label="San Vicente"]')).toHaveText("S. Vic.");
+  const mapBox = await drawing.boundingBox();
+  const listButton = page.getByRole("button", { name: "Ver como lista" });
+  const buttonBox = await listButton.boundingBox();
+  expect(mapBox).toBeTruthy();
+  expect(buttonBox).toBeTruthy();
+  expect(buttonBox!.y).toBeGreaterThan(mapBox!.y + mapBox!.height - 1);
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await expect
+    .poll(async () => (await svg.boundingBox())?.width ?? 0)
+    .toBeGreaterThan(560);
+  const wide = await svg.boundingBox();
+  expect(wide?.width ?? 0).toBeLessThanOrEqual(640);
+  await expect
+    .poll(async () => page.locator('[data-map-label="La Libertad"]').textContent())
+    .toBe("La Libertad");
+  await expect(page.locator('[data-map-label="San Vicente"]')).toHaveText("San Vicente");
 });

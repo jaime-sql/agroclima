@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { LISTEN_COPY, pickSpanishVoice } from "@/lib/speech";
+import { AI_VOICE_DISCLOSURE, LISTEN_COPY, PLAN_LISTEN_LABEL, pickSpanishVoice } from "@/lib/speech";
 import { listenFallback } from "@/lib/tts";
 
 const buttonClass =
@@ -16,9 +16,7 @@ export function ListenButton({ text }: { text: string }) {
       ? LISTEN_COPY.loading
       : player.phase === "playing"
         ? LISTEN_COPY.playing
-        : player.phase === "ended"
-          ? LISTEN_COPY.again
-          : LISTEN_COPY.idle;
+        : PLAN_LISTEN_LABEL;
 
   return (
     <div className="flex flex-col gap-2">
@@ -41,6 +39,7 @@ export function ListenButton({ text }: { text: string }) {
           <div className="h-1 bg-[#1E5B2A]" style={{ width: `${player.progress}%` }} />
         </div>
       ) : null}
+      <p className="text-[13px] leading-5 text-[#57534E]">{AI_VOICE_DISCLOSURE}</p>
       {player.note ? <p>{player.note}</p> : null}
     </div>
   );
@@ -54,6 +53,7 @@ export function SmallListen({ text }: { text: string }) {
       type="button"
       className="inline-flex h-12 min-w-12 items-center justify-center rounded-full bg-white text-lg text-[#1E5B2A] ring-2 ring-[#1E5B2A]"
       aria-label={playing ? LISTEN_COPY.playing : LISTEN_COPY.idle}
+      data-spoken={text}
       onClick={() => void player.toggle(text)}
     >
       {playing ? "❚❚" : "▶"}
@@ -67,7 +67,6 @@ function useAudioPlayer() {
   const [progress, setProgress] = useState(0);
   const [note, setNote] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const urlRef = useRef<string | null>(null);
   const speechRef = useRef(false);
 
   useEffect(() => {
@@ -82,7 +81,6 @@ function useAudioPlayer() {
   useEffect(() => {
     return () => {
       audioRef.current?.pause();
-      if (urlRef.current) URL.revokeObjectURL(urlRef.current);
       window.speechSynthesis?.cancel();
     };
   }, []);
@@ -118,17 +116,8 @@ function useAudioPlayer() {
   }
 
   async function startServerAudio(text: string): Promise<boolean> {
-    const response = await fetch("/api/tts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text }),
-    });
-    const type = response.headers.get("content-type") ?? "";
-    if (!response.ok || !type.startsWith("audio/")) return false;
     releaseAudio();
-    const url = URL.createObjectURL(await response.blob());
-    urlRef.current = url;
-    const audio = new Audio(url);
+    const audio = new Audio(`/api/tts?${new URLSearchParams({ text }).toString()}`);
     audioRef.current = audio;
     speechRef.current = false;
     audio.ontimeupdate = () => {
@@ -172,8 +161,6 @@ function useAudioPlayer() {
   function releaseAudio() {
     audioRef.current?.pause();
     audioRef.current = null;
-    if (urlRef.current) URL.revokeObjectURL(urlRef.current);
-    urlRef.current = null;
   }
 
   return { phase, progress, note, toggle };

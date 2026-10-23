@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type RefObject } from "react";
-import { dayCardReason, formatPhotoDate } from "@/lib/format";
+import { formatPhotoDate, formatSprayWindow } from "@/lib/format";
 import { downscalePhoto } from "@/lib/photo";
 import {
   departmentNames,
@@ -17,10 +17,9 @@ import {
 import { pinCardLine } from "@/lib/risk/pin-card";
 import { parseDepartmentMap, type DepartmentMapOk } from "@/lib/risk/department-catalog";
 import { PlaceMap, type MapPinSummary } from "./place-map";
-import { queHacerHoySpeech, todayRiskLevel } from "@/lib/que-hacer-hoy";
-import { listenScript } from "@/lib/speech";
+import { todayRiskLevel } from "@/lib/que-hacer-hoy";
+import { planListenText, spokenRiskSentence } from "@/lib/speech";
 import { buildAgentSteps, planStepLine } from "@/lib/agent-steps";
-import { actionPlanSpeech } from "@/lib/plan-speech";
 import { buildWhyModel, worstDayDetail, type WhyModel } from "@/lib/result-why";
 import { agronomistSharePayload, canShareFiles, whatsAppLink } from "@/lib/share";
 import {
@@ -31,8 +30,6 @@ import {
   GEO_DENIED_COPY,
   RETRY_LABEL,
   coffeeZoneLabel,
-  riskSourceNote,
-  riskStripSubtitle,
   showsActionPlan,
 } from "@/lib/vision/copy";
 import type { Diagnosis } from "@/lib/vision/diagnose";
@@ -327,15 +324,13 @@ export function HomeFlow() {
     diagnoseError,
     diagnosing,
     slow,
-    placeName: place?.name ?? "",
-    coordType: place?.coordType ?? null,
     risk,
     riskFailed: riskState === "failed",
     planAllowed,
   });
 
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-5 px-3 py-6">
+    <main className="mx-auto flex w-full max-w-[640px] flex-1 flex-col gap-5 px-3 py-6">
       <p className="font-semibold tracking-wide text-[#1E5B2A]">AgroClima</p>
       {step === "foto" ? (
         <>
@@ -920,68 +915,63 @@ function spokenText(input: {
   diagnoseError: DiagnoseError | null;
   diagnosing: boolean;
   slow: boolean;
-  placeName: string;
-  coordType: "town_centre" | "slope_point" | null;
   risk: RiskView | null;
   riskFailed: boolean;
   planAllowed: boolean;
 }): string {
   if (input.diagnosing) {
-    return input.slow
-      ? "Esto tarda un poco. Espere, por favor."
-      : "Revisando su hoja.";
+    return planListenText({
+      riskSentence: input.slow ? "Esto tarda un poco." : "Revisando su hoja.",
+      nextStep: "Siguiente paso: espere el resultado.",
+    });
   }
   if (input.step === "foto") {
-    return "Tome una foto de una hoja de café. Una sola hoja, de cerca, con buena luz.";
+    return planListenText({
+      nextStep: "Siguiente paso: tome una foto de una hoja de café.",
+    });
   }
-  const result = resultSpeech(input.diagnosis, input.diagnoseError, input.riskFailed && !input.risk);
-  const plan =
-    input.risk && showsActionPlan(input.diagnoseError, input.planAllowed)
-      ? planSpeech(input.risk)
-      : null;
-  const week = input.risk
-    ? weekSpeech(input.risk, input.placeName, input.coordType)
-    : input.riskFailed
-      ? `${FORECAST_UNAVAILABLE_TITLE}. ${FORECAST_MISSING_COPY}`
-      : null;
-  const advice =
-    input.step === "resultado" || input.step === "riesgo"
-      ? queHacerHoySpeech(todayRiskLevel(input.risk))
-      : null;
-  return listenScript({ result, plan, week, advice }) || "AgroClima";
+  return planListenText({
+    riskSentence: riskListenSentence(input),
+    nextStep: nextStepListenSentence(input),
+  });
 }
 
-function resultSpeech(
-  diagnosis: Diagnosis | null,
-  diagnoseError: DiagnoseError | null,
-  forecastMissing: boolean,
-): string | null {
-  if (diagnoseError) {
-    const status = diagnosisStatusCopy(diagnoseError);
-    return forecastMissing
-      ? `${status} ${FORECAST_UNAVAILABLE_TITLE}. ${FORECAST_MISSING_COPY}`
-      : status;
+function riskListenSentence(input: {
+  diagnosis: Diagnosis | null;
+  diagnoseError: DiagnoseError | null;
+  risk: RiskView | null;
+  riskFailed: boolean;
+}): string | null {
+  if (input.risk) {
+    const spoken = spokenRiskSentence(input.risk.days);
+    if (spoken) return spoken;
   }
-  if (!diagnosis?.ok) return null;
-  const text = [diagnosis.headline, diagnosis.detail, diagnosis.advice, diagnosis.card]
-    .filter(Boolean)
-    .join(" ");
-  return text || null;
+  if (input.riskFailed) return `${FORECAST_UNAVAILABLE_TITLE}.`;
+  if (input.diagnosis?.ok) {
+    const headline = input.diagnosis.headline.trim();
+    if (!headline) return null;
+    return headline.endsWith(".") ? headline : `${headline}.`;
+  }
+  if (input.diagnoseError) return diagnosisStatusCopy(input.diagnoseError);
+  return null;
 }
 
-function planSpeech(risk: RiskView): string {
-  return actionPlanSpeech(risk.plan);
-}
-
-function weekSpeech(
-  risk: RiskView,
-  placeName: string,
-  coordType: "town_centre" | "slope_point" | null,
-): string {
-  const days = risk.days
-    .map((day) =>
-      day.level ? `${day.date} ${day.level}. ${dayCardReason(day)}` : `${day.date} sin datos.`,
-    )
-    .join(" ");
-  return `${riskStripSubtitle(placeName, coordType)}. ${riskSourceNote(coordType)}. ${days}`;
+function nextStepListenSentence(input: {
+  diagnosis: Diagnosis | null;
+  diagnoseError: DiagnoseError | null;
+  risk: RiskView | null;
+  planAllowed: boolean;
+}): string {
+  if (input.risk && showsActionPlan(input.diagnoseError, input.planAllowed)) {
+    const when = formatSprayWindow(input.risk.plan.nextDryWindow);
+    if (when.endsWith(".")) {
+      return `Siguiente paso: ${when.charAt(0).toLocaleLowerCase("es-SV")}${when.slice(1)}`;
+    }
+    return `Siguiente paso: fumigar ${when}.`;
+  }
+  if (input.diagnosis?.ok && input.diagnosis.label === "retomar") {
+    return "Siguiente paso: tome otra foto.";
+  }
+  if (input.diagnoseError) return "Siguiente paso: intente otra vez.";
+  return "Siguiente paso: vea el riesgo de 7 días.";
 }

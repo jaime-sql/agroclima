@@ -41,8 +41,9 @@ describe("why this result", () => {
     assert.equal(ORIENTATION_TAG, "Orientativo \u2014 no es un diagnóstico");
     assert.equal(
       DETECTION_NOTE,
-      "Detección de roya: acierto 73% (IC 95% 68\u201379%) en 252 fotos públicas de hojas de Brasil (BRACOL, CC BY 4.0), tomadas en laboratorio, no en El Salvador. Detecta 58% de las hojas con roya. No es un diagnóstico; consulte a un técnico.",
+      "En pruebas con 252 fotos públicas de Brasil, acertó roya o no roya en 73 de cada 100.",
     );
+    assert.equal(DETECTION_NOTE.includes("%"), false);
     assert.ok(contrast(DETECTION_NOTE_COLOR, "#FFFFFF") >= 4.5);
     assert.ok(contrast(DETECTION_NOTE_COLOR, "#E7E5E4") >= 4.5);
 
