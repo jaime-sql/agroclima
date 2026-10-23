@@ -19,7 +19,7 @@ import {
 import { LOCATION_RECORDS, PLACES } from "../places.ts";
 import { MUNICIPALITY_CENTRE_NOTE } from "../risk/gps.ts";
 import { DEFAULT_OPENAI_MODEL } from "../openai.ts";
-import { diagnoseImage, interpretDiagnosis, parseModelPayload } from "./diagnose.ts";
+import { diagnoseImage, diagnosisForPage, interpretDiagnosis, parseModelPayload } from "./diagnose.ts";
 
 describe("diagnosis", () => {
   it("returns a structured unavailable error and does not call the network when the key is missing", async () => {
@@ -110,24 +110,33 @@ describe("diagnosis", () => {
 
     const lowHealthy = interpretDiagnosis("sana", 0.84, null);
     assert.equal(lowHealthy.band, "no_seguro");
-    assert.match(lowHealthy.headline, /No seguro/);
+    assert.equal(lowHealthy.headline, "No estamos seguros");
+    assert.equal(visibleDiagnosis(lowHealthy).includes("%"), false);
+    assert.equal(/\b(Alta|Media|Baja)\b/.test(visibleDiagnosis(lowHealthy)), false);
 
     const healthy = interpretDiagnosis("sana", 0.85, null);
     assert.equal(healthy.band, "seguro");
     assert.equal(healthy.headline, "Parece sana");
+    assert.equal(healthy.detail.includes("%"), false);
+    assert.equal(healthy.detail.includes("Seguro"), false);
 
     const probable = interpretDiagnosis("roya", 0.7, null);
     assert.equal(probable.band, "probable");
-    assert.match(probable.detail, /Probable · 70 %/);
+    assert.equal(probable.detail.includes("%"), false);
+    assert.equal(/\b(Probable|Alta|Media|Baja)\b/.test(probable.detail), false);
     assert.match(probable.detail, /Confirme con un agrónomo/);
 
     const sure = interpretDiagnosis("roya", 0.8, null);
     assert.equal(sure.band, "seguro");
-    assert.equal(sure.detail, "Seguro · 80 %");
+    assert.equal(sure.detail.includes("%"), false);
+    assert.equal(`${sure.headline} ${sure.detail}`.includes("80"), false);
+    assert.equal(/\b(Seguro|Alta)\b/.test(`${sure.headline} ${sure.detail}`), false);
 
     const unsure = interpretDiagnosis("roya", 0.59, null);
     assert.equal(unsure.band, "no_seguro");
     assert.equal(unsure.card, null);
+    assert.equal(unsure.headline, "No estamos seguros");
+    assert.equal(unsure.headline.includes("%"), false);
   });
 
   it("uses the generic retake when the model text is not the expected JSON", () => {
@@ -187,6 +196,14 @@ describe("diagnosis", () => {
     if (result.ok) {
       assert.equal(result.label, "retomar");
       assert.equal(result.confidence, 0);
+      const page = diagnosisForPage(result);
+      assert.equal("confidence" in page, false);
+      assert.equal("percent" in page, false);
+      assert.equal(JSON.stringify(page).includes("%"), false);
     }
   });
 });
+
+function visibleDiagnosis(result: ReturnType<typeof interpretDiagnosis>): string {
+  return [result.headline, result.detail, result.advice ?? "", result.card ?? ""].join(" ");
+}

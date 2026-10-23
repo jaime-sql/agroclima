@@ -53,3 +53,19 @@ Decision: The ask box retries once when a call drops before any response, then s
 Reason: The user cannot resend the way an eval can, because a drop returns no response. The trade-off is that one retry adds up to one extra call of latency and cost on a drop.
 
 Date: 2026-10-18
+
+## 2026-10-23 — Department level is the worst point
+
+Decision: A department's rust level is the worst level among its coffee points. The label is lowercase and includes the count of scored points, for example «alto · 3 puntos». Departments with no coffee point stay «Sin datos».
+
+Reason: Missing a rust outbreak costs more than a false alarm. The rule lives in one function, `aggregateDepartmentLevel`, so it can change without a second copy.
+
+Date: 2026-10-23
+
+## 2026-10-23 — Leaf result shows no model score
+
+Decision: A leaf diagnosis shows no confidence word and no model number. It shows the fixed grey tag «Orientativo — no es un diagnóstico». «Consultar a un técnico» stays on screen for every diagnosis result and uses the existing WhatsApp agronomist handoff. Inside «¿Por qué este resultado?», on a diagnosis result, a 12px grey line cites the published leaf-detector figures (BRACOL, 252 lab photos from Brazil, CC BY 4.0): 73% accuracy (95% CI 68–79%) and 58% of rusted leaves detected. The weather step keeps Alto, Medio, and Bajo from the rules. The leaf step stays a second opinion («Segunda opinión»); the weather engine leads the reasons.
+
+Reason: The vision score is uncalibrated, so it is not an accuracy figure. The cited line is a fixed study result, not this photo's score. ISC and CENTA contacts are still unverified, so the technician button does not invent a directory.
+
+Date: 2026-10-23

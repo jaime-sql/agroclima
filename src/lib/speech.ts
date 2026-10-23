@@ -35,3 +35,21 @@ export function pickSpanishVoice<T extends { lang: string }>(voices: T[]): T | n
   }
   return null;
 }
+
+/**
+ * Any Spanish voice for the plan button. es-SV first, then the same
+ * es-US / es-MX / es-ES order, then any other es-* voice.
+ */
+export function pickEsVoice<T extends { lang: string }>(voices: T[]): T | null {
+  const ranked = voices.map((voice) => ({
+    voice,
+    lang: voice.lang.toLowerCase().replaceAll("_", "-"),
+  }));
+  for (const prefix of ["es-sv", "es-us", "es-mx", "es-es"]) {
+    const match = ranked.find(
+      (item) => item.lang === prefix || item.lang.startsWith(`${prefix}-`),
+    );
+    if (match) return match.voice;
+  }
+  return ranked.find((item) => item.lang === "es" || item.lang.startsWith("es-"))?.voice ?? null;
+}

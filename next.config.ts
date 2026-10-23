@@ -18,7 +18,15 @@ const nextConfig: NextConfig = {
         loaders: ["@tailwindcss/turbopack"],
         as: "*.css",
       },
+      "*.geojson": {
+        loaders: ["./scripts/geojson-loader.cjs"],
+        as: "*.js",
+      },
     },
+  },
+  webpack: (config) => {
+    config.module.rules.push({ test: /\.geojson$/, type: "json" });
+    return config;
   },
 };
 

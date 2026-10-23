@@ -1,4 +1,4 @@
-import { diagnoseImage, type VisionEnv } from "@/lib/vision/diagnose";
+import { diagnoseImage, diagnosisForPage, type VisionEnv } from "@/lib/vision/diagnose";
 import { readServerEnv } from "@/lib/server-env";
 
 const MAX_BYTES = 2_000_000;
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
     env: readVisionEnv(),
   });
   const status = result.ok ? 200 : 503;
-  return Response.json(result, {
+  return Response.json(diagnosisForPage(result), {
     status,
     headers: { "Cache-Control": "no-store" },
   });

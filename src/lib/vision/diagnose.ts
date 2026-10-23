@@ -80,7 +80,7 @@ export function interpretDiagnosis(
       confidence: bounded,
       band: "no_seguro",
       retakeReason: null,
-      headline: `No seguro · ${percent} %`,
+      headline: "No estamos seguros",
       detail: UNSURE_DETAIL,
       advice: null,
       card: null,
@@ -89,7 +89,6 @@ export function interpretDiagnosis(
   }
 
   const band: ConfidenceBand = bounded >= 0.8 ? "seguro" : "probable";
-  const bandWord = band === "seguro" ? "Seguro" : "Probable";
 
   if (label === "sana") {
     return {
@@ -99,7 +98,7 @@ export function interpretDiagnosis(
       band,
       retakeReason: null,
       headline: "Parece sana",
-      detail: `${bandWord} · ${percent} %. ${SANA_DETAIL}`,
+      detail: SANA_DETAIL,
       advice: null,
       card: ORIENTATION_SANA,
       percent,
@@ -128,14 +127,22 @@ export function interpretDiagnosis(
     band,
     retakeReason: null,
     headline: "Parece roya",
-    detail:
-      band === "probable"
-        ? `Probable · ${percent} %. ${CONFIRM_AGRONOMIST}`
-        : `Seguro · ${percent} %`,
+    detail: band === "probable" ? CONFIRM_AGRONOMIST : "",
     advice: null,
     card: ORIENTATION_ROYA,
     percent,
   };
+}
+
+/** Drop the uncalibrated score before the page receives the diagnosis. */
+export function diagnosisForPage<T extends { ok: true; confidence: number; percent: number } | { ok: false }>(
+  result: T,
+): T extends { ok: false } ? T : Omit<T, "confidence" | "percent"> {
+  if (!result.ok) return result as T extends { ok: false } ? T : never;
+  const page: { confidence?: number; percent?: number } = { ...result };
+  delete page.confidence;
+  delete page.percent;
+  return page as T extends { ok: false } ? never : Omit<T, "confidence" | "percent">;
 }
 
 function asRetakeReason(value: unknown): RetakeReason | null {
