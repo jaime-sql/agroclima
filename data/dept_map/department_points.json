@@ -1,0 +1,122 @@
+{
+ "sources": {
+  "boundaries": "https://github.com/wmgeolab/geoBoundaries/raw/9469f09/releaseData/gbOpen/SLV/ADM1/geoBoundaries-SLV-ADM1_simplified.geojson",
+  "locations": "https://raw.githubusercontent.com/jaime-sql/agroclima/main/src/data/locations.json",
+  "boundaries_sha256": "a0486e6e2cfde45665a046333f3375f35f97b0e880f974dfb4cc9afb9e590cad",
+  "locations_sha256": "05e9d4f9e7f3db789dc6bee3f3938438afe423a32fa5589e414f5092eec98a07"
+ },
+ "departments": [
+  {
+   "department": "Departamento de Ahuachapán",
+   "n_points": 3,
+   "location_ids": [
+    "ahuachapan",
+    "apaneca-ahuachapan",
+    "concepcion-de-ataco-ahuachapan"
+   ],
+   "has_data": true
+  },
+  {
+   "department": "Departamento de Cabañas",
+   "n_points": 0,
+   "location_ids": [],
+   "has_data": false
+  },
+  {
+   "department": "Departamento de Chalatenango",
+   "n_points": 4,
+   "location_ids": [
+    "chalatenango",
+    "la-palma-chalatenango",
+    "san-fernando-chalatenango",
+    "san-ignacio-chalatenango"
+   ],
+   "has_data": true
+  },
+  {
+   "department": "Departamento de Cuscatlán",
+   "n_points": 0,
+   "location_ids": [],
+   "has_data": false
+  },
+  {
+   "department": "Departamento de La Paz",
+   "n_points": 0,
+   "location_ids": [],
+   "has_data": false
+  },
+  {
+   "department": "Departamento de La Unión",
+   "n_points": 0,
+   "location_ids": [],
+   "has_data": false
+  },
+  {
+   "department": "Departamento de Morazán",
+   "n_points": 2,
+   "location_ids": [
+    "perquin-morazan",
+    "san-fernando-morazan"
+   ],
+   "has_data": true
+  },
+  {
+   "department": "Departamento de San Miguel",
+   "n_points": 0,
+   "location_ids": [],
+   "has_data": false
+  },
+  {
+   "department": "Departamento de San Salvador",
+   "n_points": 0,
+   "location_ids": [],
+   "has_data": false
+  },
+  {
+   "department": "Departamento de Santa Ana",
+   "n_points": 1,
+   "location_ids": [
+    "santa-ana"
+   ],
+   "has_data": true
+  },
+  {
+   "department": "Departamento de Sonsonate",
+   "n_points": 2,
+   "location_ids": [
+    "juayua-sonsonate",
+    "salcoatitan-sonsonate"
+   ],
+   "has_data": true
+  },
+  {
+   "department": "Departamento de Usulután",
+   "n_points": 3,
+   "location_ids": [
+    "alegria-usulutan",
+    "berlin-usulutan",
+    "santiago-de-maria-usulutan"
+   ],
+   "has_data": true
+  },
+  {
+   "department": "La Libertad",
+   "n_points": 5,
+   "location_ids": [
+    "comasagua-la-libertad",
+    "jayaque-la-libertad",
+    "santa-tecla-la-libertad",
+    "talnique-la-libertad",
+    "tepecoyo-la-libertad"
+   ],
+   "has_data": true
+  },
+  {
+   "department": "San Vicente",
+   "n_points": 0,
+   "location_ids": [],
+   "has_data": false
+  }
+ ],
+ "issues": []
+}

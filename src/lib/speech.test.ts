@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { LISTEN_COPY, ORIENTATION_SENTENCE, listenScript, pickSpanishVoice } from "./speech.ts";
+import { LISTEN_COPY, ORIENTATION_SENTENCE, listenScript, pickEsVoice, pickSpanishVoice } from "./speech.ts";
 
 describe("Spanish voice", () => {
   it("uses only es-US, then es-MX, then es-ES", () => {
@@ -23,6 +23,20 @@ describe("Spanish voice", () => {
     assert.equal(pickSpanishVoice([{ lang: "es", name: "generic" }]), null);
     assert.equal(pickSpanishVoice([{ lang: "es-SV", name: "sv" }]), null);
     assert.equal(pickSpanishVoice([{ lang: "en-US", name: "en" }]), null);
+  });
+
+  it("prefers es-SV for the plan, then es-US, es-MX, es-ES, then any es", () => {
+    const voices = [
+      { lang: "en-US", name: "en" },
+      { lang: "es-ES", name: "es" },
+      { lang: "es-AR", name: "ar" },
+      { lang: "es-SV", name: "sv" },
+    ];
+    assert.equal(pickEsVoice(voices)?.name, "sv");
+    assert.equal(pickEsVoice(voices.filter((voice) => voice.name !== "sv"))?.name, "es");
+    assert.equal(pickEsVoice([{ lang: "es-MX", name: "mx" }, { lang: "es-US", name: "us" }])?.name, "us");
+    assert.equal(pickEsVoice([{ lang: "es", name: "generic" }])?.name, "generic");
+    assert.equal(pickEsVoice([{ lang: "en-US", name: "en" }]), null);
   });
 
   it("reads the result, then the plan, then the week, then the orientation", () => {
