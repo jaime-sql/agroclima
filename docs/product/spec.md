@@ -32,7 +32,7 @@ PRD ref: `prd.md > The Core Journey`.
 - Node.js 22 for local checks and GitHub Actions.
 - Unit tests for the risk module use Node's built-in test runner. No test service.
 
-The entrant asked for this stack in the build instructions. The brief did not name a framework. The tradeoff is that OpenNext is an extra build step, and Cloudflare's current default for new Next.js apps is vinext. OpenNext is still the choice, because the build instructions name `@opennextjs/cloudflare`. Peer range checked at install: Next `>=15.5.27 <16 || >=16.3.8`, which 16.4.0 satisfies.
+This stack comes from the build instructions. The product notes did not name a framework. The tradeoff is that OpenNext is an extra build step, and Cloudflare's current default for new Next.js apps is vinext. OpenNext is still the choice, because the build instructions name `@opennextjs/cloudflare`. Peer range checked at install: Next `>=15.5.27 <16 || >=16.3.8`, which 16.4.0 satisfies.
 
 ## Where It Runs and How Someone Tries It
 The app is a server-rendered page plus route handlers, deployed as one Worker. Local development needs Node.js 22. Vision keys are optional until the diagnosis slice exists. Open-Meteo needs no key.
@@ -57,8 +57,6 @@ npm run build:cloudflare
 ```
 
 `npm run build` is `next build`. `npm run build:cloudflare` is the OpenNext build that produces `.open-next/` for Wrangler.
-
-Submission still needs a public GitHub repository and a video under 3 minutes. Deployment is how reviewers open the live URL the brief's Success section asks for. It is not a substitute for the video.
 
 Deploy target: Cloudflare Workers, Worker name `agroclima`.
 
@@ -145,8 +143,8 @@ agroclima/
 │       │   └── openmeteo.test.ts   # URL only, no network
 │       └── vision/                 # hosted model client and Spanish result copy
 ├── docs/
-│   └── rust-risk-rules.md          # approved rules and citations
-├── devpost/                        # scope, prd, spec; learner profile is gitignored
+│   ├── rust-risk-rules.md          # approved rules and citations
+│   └── product/                    # scope, prd, spec
 ├── .github/workflows/
 │   ├── ci.yml                      # lint, typecheck, test
 │   └── deploy.yml                  # wrangler deploy, or a clear skip
@@ -219,14 +217,14 @@ The scoring rules and citations are `docs/rust-risk-rules.md`. Open-Meteo does n
 ## What Was Simplified and Why
 
 - **The risk score is computed, and the home page does not show it yet** — the module and its tests are in place; the photo flow is still later.
-- **Three department points** instead of a municipality gazetteer or GPS traces — the brief names those three areas and forbids maps. A gazetteer would not make the kernel clearer.
+- **Three department points** instead of a municipality gazetteer or GPS traces — the product notes name those three areas and leave maps out. A gazetteer would not make the kernel clearer.
 - **`wa.me` and built-in speech** instead of WhatsApp's API and a voice vendor — same share and listen behaviors, no extra accounts.
 - **Class name, not a numeric dose** — the plan says "dosis según etiqueta / su agrónomo". Trial rates in the rules doc stay in that doc.
-- **Health check and home line** as the first runnable slice — reviewers can open the URL before a model key exists.
+- **Health check and home line** as the first runnable slice — the URL can be opened before a model key exists.
 
 ## Decisions and Open Issues
-- Stack is Next.js on Cloudflare via OpenNext. Chosen in the build instructions, not in the brief. Tradeoff: vinext is Cloudflare's newer default; OpenNext matches the requested package. Agreement is the written build instruction.
-- Vision is one OpenAI-compatible call configured by env. Chosen as the simplest vendor-shaped hole, because the brief did not name a model. Tradeoff: the entrant must supply a key and confirm image upload limits. Not attributed as their product preference.
-- Review format, speech, WhatsApp link, three places, and no invented dose are the assumptions in `scope.md > Assumptions where the brief was silent`.
-- No learner uncertainty was discussed. There was no live interview. The open technical check during the diagnosis slice is whether the chosen vision endpoint accepts a data-URL image and returns the JSON label. Evidence: one real photo against `POST /api/diagnose` once that route exists.
+- Stack is Next.js on Cloudflare via OpenNext. Chosen in the build instructions. The product notes did not name a framework. Tradeoff: vinext is Cloudflare's newer default; OpenNext matches the requested package. Agreement is the written build instruction.
+- Vision is one OpenAI-compatible call configured by env. Chosen as the simplest vendor-shaped hole, because the product notes did not name a model. Tradeoff: a key must be supplied, and image upload limits must be confirmed. Not attributed as a product preference.
+- Review format, speech, WhatsApp link, three places, and no invented dose are the assumptions in `scope.md > Assumptions`.
+- The open technical check during the diagnosis slice is whether the chosen vision endpoint accepts a data-URL image and returns the JSON label. Evidence: one real photo against `POST /api/diagnose` once that route exists.
 - Open from `prd.md > Open Questions`: the cited low-cost step and dose, and the dry-window threshold. Neither blocks the shell.

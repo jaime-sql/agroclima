@@ -54,8 +54,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Personal learning context stays out of commits.
-/devpost/learner-profile.md
+# Personal notes stay out of commits.
+/docs/product/learner-profile.md
 
 # Local skill-pack install used to draft the planning docs.
 /.agents/
