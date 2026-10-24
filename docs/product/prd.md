@@ -23,10 +23,10 @@ Source: `scope.md > The Core Loop`, `scope.md > What "Working" Looks Like`.
 ## Screens and Layout
 One screen. Top: the name AgroClima and the one-sentence promise. Then the photo control and the place control. Then the answer, in this order: diagnosis, seven-day strip, action, hear it, send to WhatsApp. No second page, no menu, no map.
 
-The shell in this pass shows only the name and the promise. The photo, place, and answer arrive in later slices. Source: `scope.md > Assumptions where the brief was silent`.
+The shell in this pass shows only the name and the promise. The photo, place, and answer arrive in later slices. Source: `scope.md > Assumptions`.
 
 ## Look and Feel
-Assumption, because the brief did not set a visual style. One column on a phone. Large type so a quick reader can follow. High contrast, light background, dark text. Short sentences in Spanish (El Salvador). No icons required for the proof. No dashboard, no map, no English on the main path. The English one-liner in the README is for the repository, not the screen.
+Assumption. The product notes did not set a visual style. One column on a phone. Large type so a quick reader can follow. High contrast, light background, dark text. Short sentences in Spanish (El Salvador). No icons required for the proof. No dashboard, no map, no English on the main path. The English one-liner in the README is for the repository, not the screen.
 
 ## Features and Behavior
 
@@ -85,30 +85,30 @@ They hear the diagnosis, the week's reasons, and the plan in Spanish. They can d
 
 ## Product Decisions
 
-- Coffee rust only, El Salvador only, one grower, one photo — from the locked brief, so the demo can finish inside one flow.
-- No accounts, no database, no maps — from the locked brief. The answer does not need to survive a reload to prove the kernel.
-- Risk is explained per day from the forecast — from the locked brief, so the week is not a single unlabeled score.
-- Spanish on the product, WhatsApp as the share path — from the locked brief, because the user is on a phone and already uses WhatsApp.
-- Three departments instead of every municipality — assumption, recorded in `scope.md > Assumptions where the brief was silent`, because those are the only places named.
+- Coffee rust only, El Salvador only, one grower, one photo — so the first version stays one flow.
+- No accounts, no database, no maps. The answer does not need to survive a reload to prove the kernel.
+- Risk is explained per day from the forecast, so the week is not a single unlabeled score.
+- Spanish on the product, WhatsApp as the share path, because the user is on a phone and already uses WhatsApp.
+- Three departments instead of every municipality — assumption, recorded in `scope.md > Assumptions`, because those are the only places named.
 - Built-in speech and a `wa.me` link — assumptions in that same section. They are the smallest way to hear and share.
 - No invented dose — assumption in that same section. "How much" waits for a published source.
 
 ## What We're Building
-The phone flow above, end to end, on a live URL: photo, place, four-way diagnosis, seven-day cited risk, action with a dry window, Spanish speech, WhatsApp. About 20 real leaf photos get a reported hit rate, and the video is under 3 minutes. The risk rules live in a module that can be tested without the page.
+The phone flow above, end to end, on a live URL: photo, place, four-way diagnosis, seven-day cited risk, action with a dry window, Spanish speech, WhatsApp. Real leaf photos are checked so the diagnosis hit rate is known. The risk rules live in a module that can be tested without the page.
 
 This repository pass only puts up the shell: the Spanish home line, a health check, and the risk module's stub and test. The journey above is still the product.
 
 ## Deferred From the POC
 - Finer municipality lists and GPS maps — the three departments prove place without a map.
-- Saving a photo or a past answer — there is no database, and the demo is one sitting.
+- Saving a photo or a past answer — there is no database, and this proof is one sitting.
 - A paid voice — the phone can speak.
 - WhatsApp Business API — a link is enough to show the share.
 
 ## Possible Later Enhancements
-Other crops and diseases. Offline use when the signal drops. A view for a cooperative. SMS for someone who does not use WhatsApp. These are the brief's roadmap.
+Other crops and diseases. Offline use when the signal drops. A view for a cooperative. SMS for someone who does not use WhatsApp. These are later work.
 
 ## Non-Goals
-- Accounts and logins — the brief cuts them, and the demo does not need a named user.
+- Accounts and logins — out of scope, and the first version does not need a named user.
 - A database — nothing has to persist.
 - Maps — place is a name, not a picture of terrain.
 - Code copied from AgroSmart, AgriMCP, or AgroVision Pro — those are ideas, credited in the README, and this code is new.
