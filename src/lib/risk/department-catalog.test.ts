@@ -34,7 +34,10 @@ const WITHOUT_POINTS = [
 ];
 
 function sha256(path: string): string {
-  return createHash("sha256").update(readFileSync(path)).digest("hex");
+  // The published source files use LF. Git may check them out with CRLF on Windows,
+  // so hash normalized text rather than the platform-specific working-tree bytes.
+  const normalized = readFileSync(path, "utf8").replace(/\r\n/g, "\n");
+  return createHash("sha256").update(normalized).digest("hex");
 }
 
 describe("department catalog", () => {
