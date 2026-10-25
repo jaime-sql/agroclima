@@ -55,7 +55,7 @@ yarn-error.log*
 next-env.d.ts
 
 # Personal notes stay out of commits.
-/docs/product/learner-profile.md
+/devpost/learner-profile.md
 
 # Local skill-pack install used to draft the planning docs.
 /.agents/
